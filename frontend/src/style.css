@@ -1,1 +1,262 @@
 @import "tailwindcss";
+@import 'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap';
+
+:root {
+  --ink-primary: #1a1a2e;
+  --ink-secondary: #2d2d44;
+  --paper-cream: #f5f2eb;
+  --paper-white: #fafaf7;
+  --accent-terracotta: #b8453d;
+  --accent-terracotta-soft: rgba(184, 69, 61, 0.1);
+  --accent-terracotta-light: rgba(184, 69, 61, 0.15);
+  --text-primary: #1a1a2e;
+  --text-secondary: #5a5a6a;
+  --border-subtle: #e0dbd2;
+  --border-strong: #c9c4bb;
+  --shadow-card: 0 2px 8px rgba(26, 26, 46, 0.06), 0 1px 3px rgba(26, 26, 46, 0.04);
+  --shadow-elevated: 0 8px 24px rgba(26, 26, 46, 0.08), 0 2px 8px rgba(26, 26, 46, 0.04);
+  --shadow-badge: 0 1px 3px rgba(26, 26, 46, 0.1);
+}
+
+body {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  background-color: var(--paper-cream);
+  color: var(--text-primary);
+}
+
+.fc {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  --fc-border-color: var(--border-subtle);
+  --fc-page-bg-color: var(--paper-white);
+  --fc-today-bg-color: var(--accent-terracotta-soft);
+  --fc-highlight-color: var(--accent-terracotta-soft);
+}
+
+.fc-scroller::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.fc-scroller::-webkit-scrollbar-track {
+  background: transparent;
+}
+.fc-scroller::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 2px;
+}
+.fc-scroller::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+.fc-col-header-cell {
+  padding: 14px 0;
+  background-color: var(--paper-cream);
+  border-bottom: 1px solid var(--border-subtle) !important;
+}
+
+.fc-col-header-cell-cushion {
+  color: var(--ink-primary);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-decoration: none !important;
+  padding: 4px 8px !important;
+  transition: all 0.25s ease;
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+
+@media (min-width: 640px) {
+  .fc-col-header-cell-cushion {
+    font-size: 0.8rem;
+    padding: 4px 12px !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .fc-col-header-cell-cushion {
+    font-size: 0.75rem;
+    padding: 6px 16px !important;
+    text-transform: capitalize;
+  }
+}
+
+.fc-day-today .fc-col-header-cell-cushion {
+  color: var(--accent-terracotta);
+  background-color: var(--accent-terracotta-soft);
+  border-radius: 2px;
+}
+
+.fc-event {
+  cursor: pointer;
+  background-color: var(--accent-terracotta-light);
+  border: none;
+  border-left: 4px solid var(--accent-terracotta);
+  border-radius: 3px;
+  padding: 6px 10px;
+  box-shadow: 0 2px 6px rgba(184, 69, 61, 0.15);
+  transition: all 0.2s ease;
+}
+
+.fc-event:hover {
+  background-color: rgba(184, 69, 61, 0.25);
+  border-left-color: #9a3832;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(184, 69, 61, 0.2);
+  z-index: 10 !important;
+}
+
+.fc-v-event .fc-event-main {
+  color: var(--ink-primary);
+  font-weight: 600;
+  font-size: 0.85rem;
+  letter-spacing: 0.01em;
+  padding: 2px 0;
+}
+
+.fc-non-business {
+  background-color: var(--paper-cream);
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--paper-cream),
+    var(--paper-cream) 12px,
+    var(--border-subtle) 12px,
+    var(--border-subtle) 13px
+  );
+  opacity: 0.5;
+}
+
+.fc-highlight {
+  border: 3px dashed var(--accent-terracotta) !important;
+  border-radius: 3px;
+  background-color: var(--accent-terracotta-soft) !important;
+}
+
+.fc-highlight:hover {
+  background-color: rgba(184, 69, 61, 0.15) !important;
+}
+
+.fc-theme-standard td,
+.fc-theme-standard th {
+  border-color: var(--border-subtle);
+}
+
+.fc-timegrid-slot-minor {
+  border-top-style: solid !important;
+  border-top-color: var(--border-subtle) !important;
+}
+
+.fc-timegrid-slot {
+  height: 52px;
+}
+
+@media (min-width: 640px) {
+  .fc-timegrid-slot {
+    height: 44px;
+  }
+}
+
+@media (min-width: 768px) {
+  .fc-timegrid-slot {
+    height: 40px;
+  }
+}
+
+.fc .fc-timegrid-axis-cushion,
+.fc .fc-timegrid-slot-label-cushion {
+  color: var(--ink-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0 6px;
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+
+@media (min-width: 640px) {
+  .fc .fc-timegrid-axis-cushion,
+  .fc .fc-timegrid-slot-label-cushion {
+    padding: 0 10px;
+    font-size: 0.7rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .fc .fc-timegrid-axis-cushion,
+  .fc .fc-timegrid-slot-label-cushion {
+    padding: 0 12px;
+  }
+}
+
+.fc-timegrid-now-indicator-line {
+  border-color: var(--accent-terracotta) !important;
+  border-width: 2px !important;
+}
+
+.fc-timegrid-now-indicator-arrow {
+  border-color: var(--accent-terracotta) !important;
+  border-width: 6px !important;
+  margin-top: -2px;
+}
+
+.scale-in {
+  animation: scale-in 0.3s ease-out;
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Paper texture overlay - barely visible */
+.paper-texture {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+}
+
+/* Staggered fade-in for form sections */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stagger-in {
+  animation: fade-in-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.stagger-in:nth-child(1) { animation-delay: 0ms; }
+.stagger-in:nth-child(2) { animation-delay: 100ms; }
+.stagger-in:nth-child(3) { animation-delay: 200ms; }
+
+/* Enhanced select dropdown hover */
+select option {
+  padding: 8px 12px;
+}
+
+select option:hover {
+  background-color: var(--accent-terracotta-soft);
+}
+
+/* Shadow utilities */
+.shadow-elevated {
+  box-shadow: var(--shadow-elevated);
+}
+
+.shadow-card {
+  box-shadow: var(--shadow-card);
+}

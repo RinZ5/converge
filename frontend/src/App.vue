@@ -1,7 +1,11 @@
 <script setup lang="ts">
-  import SubmitAvailability from './views/SubmitAvailability.vue'
+  import { onMounted } from 'vue'
+  import { useTeacherStore } from './stores/teacherStore'
+  const teacherStore = useTeacherStore()
+  onMounted(async () => {
+    await teacherStore.fetchTeachers()
+  })
 </script>
-
 <template>
-  <SubmitAvailability />
+  <router-view />
 </template>

@@ -1,97 +1,103 @@
 <script setup lang="ts">
-  import { ref, computed, onMounted } from 'vue'
+  import { ref, computed, watch } from 'vue'
   import { useTeacherStore } from '../stores/teacherStore'
   import { availabilityApi } from '../services/availabilityApi'
+  import PageLayout from '../components/PageLayout.vue'
   import Calendar from '../components/Calendar.vue'
-  import type { CalendarEvent } from '../types/calendar'
-
+  import CalendarDisabledOverlay from '../components/CalendarDisabledOverlay.vue'
+  import SubmitButton from '../components/SubmitButton.vue'
+  import type { EventInput } from '@fullcalendar/core'
+  import { generateAvailabilityPayload } from '../utils/calendarHelpers'
   const teacherStore = useTeacherStore()
-  const calendarRef = ref<InstanceType<typeof Calendar>>()
-
   const isLoading = ref(false)
-
+  const events = ref<EventInput[]>([])
   const selectedTeacherId = computed({
     get: () => teacherStore.selectedTeacherId,
-    set: (val) => teacherStore.setSelectedTeacherById(val),
+    set: (val) => teacherStore.setSelectedTeacherById(val === null ? null : Number(val)),
   })
-
   const canSubmit = computed(
-    () =>
-      !!selectedTeacherId.value &&
-      !isLoading.value &&
-      calendarRef.value?.events &&
-      calendarRef.value.events.length > 0
+    () => !!selectedTeacherId.value && !isLoading.value && events.value.length > 0
   )
-
-  onMounted(() => {
-    teacherStore.fetchTeachers()
+  watch(selectedTeacherId, () => {
+    events.value = []
   })
-
-  const generatePayload = (eventsList: CalendarEvent[], teacherId: number) => {
-    const weeklyMap = new Map<string, { day_of_week: number; start: string; end: string }>()
-
-    for (const event of eventsList) {
-      const dayOfWeek = event.start.getDay()
-      const start = event.start.toTimeString().slice(0, 5)
-      const end = event.end.toTimeString().slice(0, 5)
-      const key = `${dayOfWeek}-${start}-${end}`
-      if (!weeklyMap.has(key)) {
-        weeklyMap.set(key, { day_of_week: dayOfWeek, start, end })
-      }
-    }
-
-    return { teacher_id: teacherId, weekly: Array.from(weeklyMap.values()) }
-  }
-
   const handleSubmit = async () => {
-    if (!selectedTeacherId.value || !calendarRef.value?.events || isLoading.value) return
-
+    if (!selectedTeacherId.value || events.value.length === 0 || isLoading.value) return
     isLoading.value = true
-
     try {
-      const payload = generatePayload(calendarRef.value.events, selectedTeacherId.value)
+      const payload = generateAvailabilityPayload(events.value, selectedTeacherId.value)
       await availabilityApi.submitAvailability(payload)
-
-      calendarRef.value.clearEvents()
+      events.value = []
       teacherStore.setSelectedTeacherById(null)
     } finally {
       isLoading.value = false
     }
   }
 </script>
-
 <template>
-  <div class="bg-slate-50 flex items-center justify-center p-4 font-sans min-h-screen">
-    <div class="w-full max-w-5xl bg-white rounded-2xl shadow-lg border border-slate-200 p-5">
-      <h2 class="text-xl font-bold mb-4 text-slate-800">Submit Availability</h2>
-
-      <form class="flex flex-col gap-4" @submit.prevent="handleSubmit">
-        <div>
-          <label class="font-semibold text-slate-700 text-sm block mb-1">Teacher</label>
-          <select
-            v-model="selectedTeacherId"
-            class="w-full md:w-1/2 border border-slate-300 rounded-lg px-3 py-2 text-sm"
+  <PageLayout title="Submit Availability">
+    <form class="flex flex-col gap-3 sm:gap-4 flex-1 min-h-0" @submit.prevent="handleSubmit">
+      <div
+        class="bg-(--paper-white) p-4 sm:p-5 rounded-sm border border-(--border-subtle) shadow-card stagger-in"
+      >
+        <label class="font-semibold text-(--ink-primary) text-sm block mb-2 sm:mb-3 tracking-tight">
+          <span
+            class="font-mono text-xs border-2 border-(--ink-primary) bg-(--paper-cream) px-2.5 sm:px-3 py-1 rounded-sm tracking-widest mr-2 sm:mr-3 shadow-badge inline-block"
+            >01</span
           >
-            <option :value="null" disabled>-- Choose Your Name --</option>
-            <option v-for="teacher in teacherStore.teachers" :key="teacher.id" :value="teacher.id">
-              {{ teacher.name }}
-            </option>
-          </select>
-        </div>
-
-        <div>
-          <label class="font-semibold text-slate-700 text-sm block mb-1">Time Slots</label>
-          <Calendar ref="calendarRef" :editable="!!selectedTeacherId" />
-        </div>
-
-        <button
-          type="submit"
-          :disabled="!canSubmit"
-          class="ml-auto bg-slate-800 hover:bg-slate-900 text-white font-semibold py-2 px-6 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          Teacher
+        </label>
+        <select
+          v-model="selectedTeacherId"
+          class="w-full bg-white border border-(--border-strong) rounded-sm px-3 sm:px-4 py-2.5 sm:py-3 text-sm focus:ring-2 focus:ring-(--accent-terracotta)/10 focus:border-(--accent-terracotta) outline-none transition-all text-(--ink-primary) cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:border-(--text-secondary)"
         >
-          {{ isLoading ? 'Submitting...' : 'Submit' }}
-        </button>
-      </form>
-    </div>
-  </div>
+          <option :value="null" disabled>-- Choose Your Name --</option>
+          <option v-for="teacher in teacherStore.teachers" :key="teacher.id" :value="teacher.id">
+            {{ teacher.name }}
+          </option>
+        </select>
+      </div>
+      <div class="flex-1 flex flex-col min-h-0 stagger-in">
+        <div class="flex items-center justify-between mb-3 sm:mb-4 shrink-0">
+          <label class="font-semibold text-(--ink-primary) text-sm tracking-tight">
+            <span
+              class="font-mono text-xs border-2 border-(--ink-primary) bg-(--paper-cream) px-2.5 sm:px-3 py-1 rounded-sm tracking-widest mr-2 sm:mr-3 shadow-badge inline-block"
+              >02</span
+            >
+            Time Slots
+          </label>
+          <span
+            v-if="selectedTeacherId"
+            class="text-xs font-medium text-(--accent-terracotta) bg-(--accent-terracotta-soft) px-3 sm:px-4 py-1 sm:py-1.5 rounded-sm border border-(--accent-terracotta)/25 tracking-wide hidden sm:inline-block"
+          >
+            Click and drag to select
+          </span>
+        </div>
+        <div
+          class="relative border border-(--border-subtle) rounded-sm overflow-hidden shadow-card bg-(--paper-white) flex-1 min-h-0"
+        >
+          <div
+            :class="{
+              'opacity-45 grayscale-30 pointer-events-none transition-opacity duration-300':
+                !selectedTeacherId,
+            }"
+            class="h-full"
+          >
+            <Calendar v-model="events" :editable="!!selectedTeacherId" class="h-full" />
+          </div>
+          <CalendarDisabledOverlay v-if="!selectedTeacherId" message="Select a teacher first" />
+        </div>
+      </div>
+      <div
+        class="flex justify-end pt-4 sm:pt-5 border-t border-(--border-subtle) shrink-0 stagger-in"
+      >
+        <SubmitButton
+          :is-disabled="!canSubmit"
+          :is-loading="isLoading"
+          loading-text="Submitting..."
+          normal-text="Submit Availability"
+        />
+      </div>
+    </form>
+  </PageLayout>
 </template>

@@ -1,12 +1,10 @@
-import type { Teacher } from '../types/teacher'
-import { API_BASE } from '../config/api'
-
+import type { Teacher } from '../types'
+import { API_ENDPOINTS } from '../config/endpoints'
+import { createApiGetAll, fetchApi } from '../utils/api'
 export const teacherApi = {
-  async getAll(): Promise<Teacher[]> {
-    const response = await fetch(`${API_BASE}/teachers`)
-    if (!response.ok) {
-      throw new Error(`Failed to fetch teachers: ${response.statusText}`)
-    }
-    return response.json()
+  getAll: createApiGetAll<Teacher>(API_ENDPOINTS.TEACHERS),
+  getBySubject: (subjectId: number) => {
+    const url = new URLSearchParams({ subject_id: subjectId.toString() })
+    return fetchApi<Teacher[]>(`${API_ENDPOINTS.TEACHERS}?${url}`)
   },
 }
