@@ -2,6 +2,7 @@
   import { ref, watch } from 'vue'
   import type { BookingResponse } from '../types'
   import type { CartItem } from '../composables/useBookingCart'
+  import { rangesOverlap } from '../utils/dateValidation'
 
   interface Props {
     suggestions: BookingResponse | null
@@ -31,16 +32,29 @@
     return `${teacherId}-${startTime}`
   }
 
-  // Check if a booking is already in cart
-  const isInCart = (teacherId: number, startTime: string): boolean => {
-    return props.cartItems.some(
-      item => item.teacher_id === teacherId && item.start_time === startTime
-    )
+  // Check if a booking time slot overlaps with any cart item for the same teacher
+  const isInCart = (teacherId: number, startTime: string, endTime: string): boolean => {
+    const newStart = new Date(startTime)
+    const newEnd = new Date(endTime)
+
+    return props.cartItems.some((item) => {
+      // Only check items for the same teacher
+      if (item.teacher_id !== teacherId) return false
+
+      const itemStart = new Date(item.start_time)
+      const itemEnd = new Date(item.end_time)
+
+      // Check if time slots overlap
+      return rangesOverlap(newStart, newEnd, itemStart, itemEnd)
+    })
   }
 
   // Check if a booking is already made (either in local state or cart)
-  const isBooked = (teacherId: number, startTime: string): boolean => {
-    return bookedKeys.value.has(getBookingKey(teacherId, startTime)) || isInCart(teacherId, startTime)
+  const isBooked = (teacherId: number, startTime: string, endTime: string): boolean => {
+    return (
+      bookedKeys.value.has(getBookingKey(teacherId, startTime)) ||
+      isInCart(teacherId, startTime, endTime)
+    )
   }
 
   // Handle booking - emit event and mark as booked
@@ -58,16 +72,19 @@
   }
 
   // Clear booked state when suggestions change (new search)
-  watch(() => props.suggestions, () => {
-    bookedKeys.value.clear()
-  })
+  watch(
+    () => props.suggestions,
+    () => {
+      bookedKeys.value.clear()
+    }
+  )
 
   const getScoreColor = (score: number): string => {
     if (score >= 90) return 'score-excellent' // 90-100: Green
-    if (score >= 75) return 'score-high'     // 75-89: Light green
-    if (score >= 60) return 'score-medium'   // 60-74: Yellow
-    if (score >= 45) return 'score-low'      // 45-59: Orange
-    return 'score-poor'                       // 0-44: Red
+    if (score >= 75) return 'score-high' // 75-89: Light green
+    if (score >= 60) return 'score-medium' // 60-74: Yellow
+    if (score >= 45) return 'score-low' // 45-59: Orange
+    return 'score-poor' // 0-44: Red
   }
 
   const formatTime = (dateStr: string): string => {
@@ -167,8 +184,20 @@
           <button
             type="button"
             class="match-button"
-            :class="{ 'match-button--booked': isBooked(slotResult.exact_match.teacher_id, slotResult.exact_match.start_time) }"
-            :disabled="isBooked(slotResult.exact_match.teacher_id, slotResult.exact_match.start_time)"
+            :class="{
+              'match-button--booked': isBooked(
+                slotResult.exact_match.teacher_id,
+                slotResult.exact_match.start_time,
+                slotResult.exact_match.end_time
+              ),
+            }"
+            :disabled="
+              isBooked(
+                slotResult.exact_match.teacher_id,
+                slotResult.exact_match.start_time,
+                slotResult.exact_match.end_time
+              )
+            "
             @click="
               handleBooking(
                 slotResult.exact_match.teacher_id,
@@ -178,7 +207,15 @@
               )
             "
           >
-            {{ isBooked(slotResult.exact_match.teacher_id, slotResult.exact_match.start_time) ? 'Booked' : 'Book Now' }}
+            {{
+              isBooked(
+                slotResult.exact_match.teacher_id,
+                slotResult.exact_match.start_time,
+                slotResult.exact_match.end_time
+              )
+                ? 'Booked'
+                : 'Book Now'
+            }}
           </button>
         </div>
 
@@ -220,18 +257,17 @@
             <button
               type="button"
               class="alternative-button"
-              :class="{ 'alternative-button--booked': isBooked(alt.teacher_id, alt.start_time) }"
-              :disabled="isBooked(alt.teacher_id, alt.start_time)"
-              @click="
-                handleBooking(
+              :class="{
+                'alternative-button--booked': isBooked(
                   alt.teacher_id,
-                  alt.teacher_name,
                   alt.start_time,
                   alt.end_time
-                )
-              "
+                ),
+              }"
+              :disabled="isBooked(alt.teacher_id, alt.start_time, alt.end_time)"
+              @click="handleBooking(alt.teacher_id, alt.teacher_name, alt.start_time, alt.end_time)"
             >
-              {{ isBooked(alt.teacher_id, alt.start_time) ? 'Booked' : 'Book Now' }}
+              {{ isBooked(alt.teacher_id, alt.start_time, alt.end_time) ? 'Booked' : 'Book Now' }}
             </button>
           </div>
         </div>
@@ -375,10 +411,6 @@
   }
 
   /* Result card background colors based on score */
-
-
-
-
 
   @keyframes result-card-enter {
     from {
