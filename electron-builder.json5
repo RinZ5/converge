@@ -1,0 +1,23 @@
+{
+  appId: "com.converge.desktop",
+  productName: "Converge",
+  directories: {
+    output: "release",
+  },
+  files: ["electron/**/*"],
+  extraResources: [
+    {
+      from: "backend/bin/desktop",
+      to: "desktop",
+    },
+  ],
+  mac: {
+    target: "dmg",
+  },
+  win: {
+    target: "nsis",
+  },
+  linux: {
+    target: "AppImage",
+  },
+}

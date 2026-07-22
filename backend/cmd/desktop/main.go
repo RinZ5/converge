@@ -1,0 +1,120 @@
+// Desktop entry point — uses SQLite instead of PostgreSQL.
+// Built for Electron: compiled binary is spawned as a child process.
+package main
+
+import (
+	"net/http"
+	"os"
+	"strings"
+
+	"github.com/RinZ5/converge/backend/internal/adapter"
+	"github.com/RinZ5/converge/backend/internal/adapter/db"
+	"github.com/RinZ5/converge/backend/internal/adapter/web"
+	"github.com/RinZ5/converge/backend/internal/commute"
+	"github.com/RinZ5/converge/backend/internal/room"
+	"github.com/RinZ5/converge/backend/internal/scheduling"
+	"github.com/RinZ5/converge/backend/internal/shared"
+	"github.com/RinZ5/converge/backend/internal/teacher"
+
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+)
+
+const serverAddr = ":8080"
+
+func corsConfig() cors.Config {
+	allowedOriginsStr := os.Getenv("ALLOWED_ORIGINS")
+	allowedOrigins := []string{"http://localhost:5173"}
+	if allowedOriginsStr != "" {
+		allowedOrigins = allowedOrigins[:0]
+		for _, item := range strings.Split(allowedOriginsStr, ",") {
+			if trimmed := strings.TrimSpace(item); trimmed != "" {
+				allowedOrigins = append(allowedOrigins, trimmed)
+			}
+		}
+	}
+	return cors.Config{
+		AllowOrigins:     allowedOrigins,
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept"},
+		AllowCredentials: false,
+	}
+}
+
+func requestIDMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, _ := shared.ContextWithRequestID(c.Request.Context())
+		c.Request = c.Request.WithContext(ctx)
+		c.Next()
+	}
+}
+
+func main() {
+	logger := shared.NewLogger()
+
+	dbPath := os.Getenv("DB_PATH")
+	if dbPath == "" {
+		dbPath = "converge.db"
+	}
+
+	database, err := db.InitSQLiteDB(dbPath)
+	if err != nil {
+		logger.Error("database init failed", "error", err)
+		os.Exit(1)
+	}
+	defer func() {
+		if err := db.CloseSQLiteDB(database); err != nil {
+			logger.Error("closing database", "error", err)
+		}
+	}()
+
+	if err := db.AutoMigrateSQLite(database); err != nil {
+		logger.Error("auto migrate failed", "error", err)
+		os.Exit(1)
+	}
+
+	if err := db.SeedSQLite(database); err != nil {
+		logger.Error("seed failed", "error", err)
+		os.Exit(1)
+	}
+
+	availRepo := db.NewSQLiteRepo(database)
+	bookingRepo := db.NewSQLiteBookingRepository(database)
+	teacherSvc := teacher.NewService(availRepo, logger)
+	teacherRoster := adapter.NewTeacherRosterAdapter(teacherSvc)
+	commuteSvc := commute.NewService(logger)
+	roomSvc := room.NewService(logger)
+	commuteAdapter := adapter.NewCommuteAdapter(commuteSvc)
+	roomAdapter := adapter.NewRoomAdapter(roomSvc)
+
+	scorer := scheduling.NewWeightedScorer()
+	clpEngine := scheduling.NewCLPEngine(bookingRepo, teacherRoster, scorer, commuteAdapter, roomAdapter, logger)
+
+	schedulingSvc := scheduling.NewSchedulingService(bookingRepo, availRepo, clpEngine)
+
+	availHandler := web.NewAvailabilityHandler(teacherSvc, logger)
+	bookingHandler := web.NewBookingHandler(schedulingSvc, logger)
+
+	r := gin.Default()
+	r.Use(cors.New(corsConfig()))
+	r.Use(requestIDMiddleware())
+	api := r.Group("/api")
+	api.GET("/teachers", availHandler.GetTeachers)
+	api.GET("/availability", availHandler.GetAllAvailability)
+	api.POST("/availability", availHandler.SubmitWeeklyAvailability)
+	api.GET("/branches", availHandler.GetBranches)
+	api.GET("/subjects", availHandler.GetSubjects)
+	api.POST("/bookings", bookingHandler.CreateBooking)
+	api.GET("/bookings", bookingHandler.ListBookings)
+	api.POST("/bookings/confirm", bookingHandler.ConfirmBooking)
+	api.DELETE("/bookings/:id", bookingHandler.CancelBooking)
+
+	r.NoRoute(func(c *gin.Context) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+	})
+
+	logger.Info("desktop server starting", "addr", serverAddr, "tz", shared.LoadLocation().String())
+	if err := r.Run(serverAddr); err != nil {
+		logger.Error("server failed", "error", err)
+	}
+}

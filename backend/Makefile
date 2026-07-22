@@ -10,6 +10,10 @@ build: swag
 	mkdir -p bin
 	go build -o bin/api ./cmd/api/
 
+build-desktop:
+	mkdir -p bin
+	go build -o bin/desktop ./cmd/desktop/
+
 test:
 	go test ./... -count=1
 
