@@ -1,48 +1,69 @@
 <script setup lang="ts">
-  import { ref, onMounted } from 'vue'
-  import { useNotification } from '../composables/useNotification'
+  import { computed, ref, onMounted } from 'vue'
+  import { Loader2 } from '@lucide/vue'
   import PageLayout from '../components/PageLayout.vue'
   import ManagementNav from '../components/ManagementNav.vue'
   import { commuteApi } from '../services/commuteApi'
+  import { useNotification } from '../composables/useNotification'
+  import { Button } from '@/components/ui/button'
+  import { Card, CardContent } from '@/components/ui/card'
+  import { Input } from '@/components/ui/input'
+  import { Label } from '@/components/ui/label'
 
   const { showSuccess, showError } = useNotification()
 
   const currentMinutes = ref<number | null>(null)
   const draft = ref('')
+  const isLoading = ref(true)
   const isSaving = ref(false)
-  const isLoading = ref(false)
+  const loadError = ref('')
 
-  onMounted(async () => {
+  const load = async () => {
     isLoading.value = true
+    loadError.value = ''
     try {
       const data = await commuteApi.get()
       currentMinutes.value = data.commute_time
       draft.value = String(data.commute_time)
     } catch (err) {
-      showError(err, 'Failed to load commute time')
+      loadError.value = err instanceof Error ? err.message : 'Failed to load commute time'
     } finally {
       isLoading.value = false
     }
+  }
+
+  onMounted(load)
+
+  const plural = (minutes: number) => `${minutes} minute${minutes === 1 ? '' : 's'}`
+
+  const parsed = computed<number | null>(() => {
+    const raw = draft.value.trim()
+    if (raw === '') return null
+    const minutes = Number(raw)
+    return Number.isInteger(minutes) && minutes >= 0 ? minutes : null
   })
 
-  const isDirty = () =>
-    currentMinutes.value !== null && String(draft.value) !== String(currentMinutes.value)
+  const isDirty = computed(() => parsed.value !== currentMinutes.value)
+
+  // Saying why Save is unavailable, rather than only greying it out. The old
+  // version returned silently on an empty field, which looked like a dead button.
+  const saveBlocker = computed<string | null>(() => {
+    if (draft.value.trim() === '') return 'Enter a commute time.'
+    if (parsed.value === null) return 'Commute time must be a whole number of 0 or more.'
+    return null
+  })
+
+  const canSave = computed(() => saveBlocker.value === null && isDirty.value && !isSaving.value)
 
   const handleSave = async () => {
-    const raw = String(draft.value ?? '').trim()
-    if (raw === '') return
-    const minutes = Number(raw)
-    if (!Number.isInteger(minutes) || minutes < 0) {
-      showError(null, 'Commute time must be a whole number of 0 or more')
-      return
-    }
-
+    const minutes = parsed.value
+    if (!canSave.value || minutes === null) return
     isSaving.value = true
     try {
       await commuteApi.set(minutes)
       currentMinutes.value = minutes
       draft.value = String(minutes)
-      showSuccess(`Commute time updated to ${minutes} minute${minutes === 1 ? '' : 's'}`)
+      showSuccess(`Commute time updated to ${plural(minutes)}`)
     } catch (err) {
       showError(err, 'Failed to update commute time')
     } finally {
@@ -53,226 +74,71 @@
 
 <template>
   <PageLayout title="Manage Commute" :show-cart="false" back-to="/dashboard" back-label="Dashboard">
-    <div class="manage-root">
-      <ManagementNav />
-      <div class="manage-section">
-        <h2 class="manage-section-title">Commute Time</h2>
-        <p class="manage-section-subtitle">
-          Travel time in minutes applied between different branches. The smart booking engine uses
-          it to pad conflicting bookings when a teacher must travel between branches.
-        </p>
-        <div v-if="isLoading" class="manage-empty">Loading commute time...</div>
-        <div v-else-if="currentMinutes !== null" class="commute-card">
-          <div class="commute-card-row">
-            <div class="commute-card-info">
-              <div class="commute-card-label">Current Commute Time</div>
-              <div class="commute-card-current">
+    <ManagementNav />
+
+    <div class="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-6 sm:px-6 lg:px-8">
+      <Card v-if="isLoading" class="max-w-2xl">
+        <CardContent class="text-muted-foreground flex items-center gap-2 py-4 text-sm">
+          <Loader2 class="size-4 animate-spin" />
+          Loading commute time…
+        </CardContent>
+      </Card>
+
+      <Card v-else-if="loadError" class="border-destructive/30 max-w-2xl">
+        <CardContent class="flex flex-wrap items-center justify-between gap-3">
+          <p class="text-destructive text-sm">{{ loadError }}</p>
+          <Button variant="outline" @click="load">Retry</Button>
+        </CardContent>
+      </Card>
+
+      <Card v-else class="max-w-2xl">
+        <CardContent class="flex flex-col gap-5">
+          <div class="flex flex-col gap-1">
+            <h2 class="text-sm font-medium">Commute time</h2>
+            <p class="text-muted-foreground text-xs">
+              Travel time between different branches. The booking engine pads a teacher’s schedule
+              by this much when their next class is at another branch.
+            </p>
+          </div>
+
+          <div class="flex flex-wrap items-end gap-x-8 gap-y-4">
+            <div class="flex flex-col gap-0.5">
+              <span class="text-muted-foreground text-xs">Current</span>
+              <span class="text-2xl leading-tight font-semibold tabular-nums">
                 {{ currentMinutes }}
-                <span class="commute-card-unit"> minute{{ currentMinutes === 1 ? '' : 's' }} </span>
+                <span class="text-muted-foreground text-base font-normal">
+                  minute{{ currentMinutes === 1 ? '' : 's' }}
+                </span>
+              </span>
+            </div>
+
+            <div class="flex flex-col gap-2">
+              <Label for="commute-minutes">New value</Label>
+              <div class="flex items-center gap-2">
+                <Input
+                  id="commute-minutes"
+                  v-model="draft"
+                  type="number"
+                  min="0"
+                  step="1"
+                  class="w-24"
+                  @keyup.enter="handleSave"
+                />
+                <span class="text-muted-foreground text-sm">minutes</span>
+                <Button :disabled="!canSave" @click="handleSave">
+                  <Loader2 v-if="isSaving" class="animate-spin" />
+                  Save
+                </Button>
               </div>
             </div>
           </div>
 
-          <div class="commute-form">
-            <div class="commute-form-field">
-              <label class="commute-label" for="commute-time-input">New Commute Time</label>
-              <input
-                id="commute-time-input"
-                v-model="draft"
-                type="number"
-                min="0"
-                step="1"
-                class="commute-input"
-                aria-label="Commute time in minutes"
-              />
-            </div>
-            <button
-              type="button"
-              class="commute-btn"
-              :disabled="isSaving || !isDirty()"
-              @click="handleSave"
-            >
-              {{ isSaving ? 'Saving...' : 'Save' }}
-            </button>
-          </div>
-        </div>
-        <div v-else class="manage-empty">Unable to load commute time</div>
-      </div>
+          <p v-if="saveBlocker" class="text-destructive text-sm">{{ saveBlocker }}</p>
+          <p v-else-if="!isDirty" class="text-muted-foreground text-sm">
+            This is the value already in use.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   </PageLayout>
 </template>
-
-<style scoped>
-  .manage-root {
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-  }
-
-  .manage-section {
-    padding: 1.5rem;
-    max-width: 64rem;
-    margin: 0 auto;
-  }
-
-  .manage-section-title {
-    margin: 0 0 0.25rem;
-    font-family: 'Instrument Sans', sans-serif;
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
-  .manage-section-subtitle {
-    margin: 0 0 1rem;
-    font-family: Inter, sans-serif;
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-  }
-
-  .manage-empty {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 10rem;
-    font-family: Inter, sans-serif;
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    border-radius: 0.75rem;
-    border: 2px dashed var(--border-medium);
-    background: var(--bg-subtle);
-  }
-
-  .commute-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-subtle);
-    border-radius: 0.75rem;
-    padding: 1.25rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-  }
-
-  .commute-card-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .commute-card-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-
-  .commute-card-label {
-    font-family: Inter, sans-serif;
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-  }
-
-  .commute-card-current {
-    font-family: 'Instrument Sans', sans-serif;
-    font-size: 1.75rem;
-    font-weight: 600;
-    color: var(--primary-indigo);
-    line-height: 1.1;
-  }
-
-  .commute-card-unit {
-    font-family: Inter, sans-serif;
-    font-size: 0.9375rem;
-    font-weight: 400;
-    color: var(--text-secondary);
-  }
-
-  .commute-form {
-    display: flex;
-    gap: 0.75rem;
-    align-items: flex-end;
-  }
-
-  .commute-form-field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-  }
-
-  .commute-label {
-    font-family: Inter, sans-serif;
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-  }
-
-  .commute-input {
-    width: 8rem;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
-    font-family: Inter, sans-serif;
-    color: var(--text-primary);
-    background: var(--bg-cream);
-    border: 1px solid var(--border-medium);
-    border-radius: 0.5rem;
-    outline: none;
-    transition: border-color 0.15s;
-  }
-
-  .commute-input:focus {
-    border-color: var(--accent-sage);
-    box-shadow: 0 0 0 3px rgba(157, 180, 160, 0.15);
-  }
-
-  .commute-btn {
-    padding: 0.5rem 1.25rem;
-    font-size: 0.875rem;
-    font-family: Inter, sans-serif;
-    font-weight: 500;
-    color: var(--on-accent);
-    background: var(--primary-indigo);
-    border: none;
-    border-radius: 0.5rem;
-    cursor: pointer;
-    transition: all 0.15s;
-    white-space: nowrap;
-  }
-
-  .commute-btn:hover:not(:disabled) {
-    opacity: 0.9;
-  }
-
-  .commute-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  @media (max-width: 767px) {
-    .manage-section {
-      padding: 1rem;
-    }
-
-    .manage-section-title {
-      font-size: 1rem;
-    }
-
-    .commute-form {
-      flex-direction: column;
-      align-items: stretch;
-    }
-
-    .commute-input {
-      width: 100%;
-    }
-  }
-
-  @media (min-width: 768px) and (max-width: 1023px) {
-    .manage-section {
-      padding: 1.25rem;
-    }
-  }
-</style>
