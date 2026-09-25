@@ -64,11 +64,11 @@
   }
 
   .toast--success {
-    background: var(--accent-sage);
+    background: var(--success);
   }
 
   .toast--error {
-    background: var(--accent-coral);
+    background: var(--danger);
   }
 
   .toast-icon {

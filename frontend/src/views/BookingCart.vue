@@ -176,7 +176,7 @@
           <button
             type="button"
             :disabled="isConfirming || cartItems.length === 0"
-            class="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-md border-none bg-(--accent-sage) px-5 py-3.5 font-[Inter,sans-serif] text-sm font-medium text-white shadow-[0_2px_8px_rgba(157,180,160,0.2)] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:enabled:-translate-y-0.5 hover:enabled:shadow-[0_4px_16px_rgba(157,180,160,0.3)] hover:enabled:brightness-90 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none max-sm:w-full"
+            class="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-md border-none bg-(--success) px-5 py-3.5 font-[Inter,sans-serif] text-sm font-medium text-white shadow-[0_2px_8px_rgba(157,180,160,0.2)] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:enabled:-translate-y-0.5 hover:enabled:shadow-[0_4px_16px_rgba(157,180,160,0.3)] hover:enabled:brightness-90 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none max-sm:w-full"
             @click="handleSubmit"
           >
             <span v-if="!isConfirming">Confirm Booking</span>
@@ -228,7 +228,7 @@
             </button>
             <button
               type="button"
-              class="cursor-pointer rounded-md border-none bg-(--accent-coral) px-4 py-2.5 font-[Inter,sans-serif] text-sm font-medium text-white transition-all duration-200 hover:bg-[var(--accent-coral-deep)]"
+              class="cursor-pointer rounded-md border-none bg-(--danger) px-4 py-2.5 font-[Inter,sans-serif] text-sm font-medium text-white transition-all duration-200 hover:bg-[var(--accent-coral-deep)]"
               @click="confirmClearAll"
             >
               Clear All

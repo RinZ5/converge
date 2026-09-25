@@ -7,13 +7,19 @@ import {
   buildEntry,
   groupBookingsBy,
   matchesSearch,
-  sortEntriesByName,
+  sortEntriesForDisplay,
   subjectsFromBookings,
 } from '../utils/roster'
 import type { AuthUser, Booking, Subject, Teacher } from '../types'
 import type { RosterEntry, RosterMode } from '../utils/roster'
 
-export type { RosterEntry, RosterMode, RosterPerson, RosterSession } from '../utils/roster'
+export type {
+  RosterEntry,
+  RosterMode,
+  RosterPerson,
+  RosterSession,
+  RosterStatus,
+} from '../utils/roster'
 
 export interface RosterCounts {
   teachers: number
@@ -34,10 +40,6 @@ export function useAdminRoster() {
 
   const mode = ref<RosterMode>('teachers')
   const search = ref('')
-
-  // Recomputed on every load rather than per entry, so one refresh cannot
-  // straddle two different "now"s while deciding which session is next.
-  const loadedAt = ref(Date.now())
 
   const loadTeacherSubjects = async (list: Subject[]): Promise<Map<number, string[]>> => {
     const map = new Map<number, string[]>()
@@ -76,7 +78,6 @@ export function useAdminRoster() {
       students.value = studentList
       subjects.value = subjectList
       teacherSubjects.value = await loadTeacherSubjects(subjectList)
-      loadedAt.value = Date.now()
     } catch (err) {
       loadError.value = err instanceof Error ? err.message : 'Failed to load the roster'
     } finally {
@@ -85,29 +86,33 @@ export function useAdminRoster() {
   }
 
   const allEntries = computed<RosterEntry[]>(() => {
-    const now = loadedAt.value
-
     if (mode.value === 'teachers') {
       const byTeacher = groupBookingsBy(bookings.value, (b) => b.teacher_id)
-      return sortEntriesByName(
+      return sortEntriesForDisplay(
         teachers.value.map((teacher) =>
-          buildEntry(
-            teacher.id,
-            teacher.name,
-            teacherSubjects.value.get(teacher.id) ?? [],
-            byTeacher.get(teacher.id) ?? [],
-            'teachers',
-            now
-          )
+          buildEntry({
+            id: teacher.id,
+            name: teacher.name,
+            subjects: teacherSubjects.value.get(teacher.id) ?? [],
+            bookings: byTeacher.get(teacher.id) ?? [],
+            mode: 'teachers',
+            status: teacher.status,
+          })
         )
       )
     }
 
     const byStudent = groupBookingsBy(bookings.value, (b) => b.student_id)
-    return sortEntriesByName(
+    return sortEntriesForDisplay(
       students.value.map((student) => {
         const own = byStudent.get(student.id) ?? []
-        return buildEntry(student.id, student.name, subjectsFromBookings(own), own, 'students', now)
+        return buildEntry({
+          id: student.id,
+          name: student.name,
+          subjects: subjectsFromBookings(own),
+          bookings: own,
+          mode: 'students',
+        })
       })
     )
   })

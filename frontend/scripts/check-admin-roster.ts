@@ -11,7 +11,7 @@ import {
   buildEntry,
   groupByCounterpart,
   matchesSearch,
-  nextSessionOf,
+  sortEntriesForDisplay,
   subjectsFromBookings,
 } from '../src/utils/roster.ts'
 import type { Booking } from '../src/types/booking.ts'
@@ -33,8 +33,6 @@ const booking = (over: Partial<Booking>): Booking =>
     created_at: '2026-09-01T00:00:00Z',
     ...over,
   }) as Booking
-
-const NOW = new Date('2026-10-01T00:00:00Z').getTime()
 
 // --- happy path: repeat sessions collapse into one person ------------------
 {
@@ -94,45 +92,87 @@ const NOW = new Date('2026-10-01T00:00:00Z').getTime()
   assert.deepEqual(person.branches, ['Branch #1'])
 }
 
-// --- edge: nextSession ignores past and unparseable dates -----------------
-{
-  const people = groupByCounterpart(
-    [
-      booking({ id: 1, start_time: '2026-09-01T09:00:00Z', end_time: '2026-09-01T10:00:00Z' }),
-      booking({ id: 2, start_time: 'not-a-date', end_time: 'not-a-date' }),
-      booking({ id: 3, start_time: '2026-10-09T09:00:00Z', end_time: '2026-10-09T10:00:00Z' }),
-      booking({ id: 4, start_time: '2026-10-03T09:00:00Z', end_time: '2026-10-03T10:00:00Z' }),
-    ],
-    'teachers'
-  )
-  const next = nextSessionOf(people, NOW)
-  assert.equal(next?.id, 4, 'earliest future session wins; past and invalid skipped')
-
-  assert.equal(nextSessionOf([], NOW), null, 'no people means no next session')
-  const onlyPast = groupByCounterpart(
-    [booking({ start_time: '2026-09-01T09:00:00Z', end_time: '2026-09-01T10:00:00Z' })],
-    'teachers'
-  )
-  assert.equal(nextSessionOf(onlyPast, NOW), null, 'all-past means no next session')
-}
-
 // --- edge: a teacher with no bookings is still an entry --------------------
 {
-  const entry = buildEntry(10, 'Alice', ['Math'], [], 'teachers', NOW)
+  const entry = buildEntry({
+    id: 10,
+    name: 'Alice',
+    subjects: ['Math'],
+    bookings: [],
+    mode: 'teachers',
+    status: 'active',
+  })
   assert.equal(entry.classCount, 0)
   assert.deepEqual(entry.people, [])
-  assert.equal(entry.nextSession, null)
   assert.deepEqual(entry.subjects, ['Math'], 'assigned subjects survive with zero bookings')
+}
+
+// --- status rides along for teachers and stays absent for students ---------
+{
+  const deactivated = buildEntry({
+    id: 11,
+    name: 'Bob',
+    subjects: [],
+    bookings: [booking({})],
+    mode: 'teachers',
+    status: 'deactivated',
+  })
+  assert.equal(deactivated.status, 'deactivated', 'the dot needs the status on the entry')
+  assert.equal(deactivated.classCount, 1, 'a deactivated teacher keeps their existing bookings')
+
+  const student = buildEntry({
+    id: 100,
+    name: 'Bob',
+    subjects: [],
+    bookings: [],
+    mode: 'students',
+  })
+  assert.equal(student.status, undefined, 'students have no status, so no dot is rendered')
 }
 
 // --- search reaches the counterpart, which is the reverse lookup -----------
 {
-  const entry = buildEntry(10, 'Alice', ['Math'], [booking({})], 'teachers', NOW)
+  const entry = buildEntry({
+    id: 10,
+    name: 'Alice',
+    subjects: ['Math'],
+    bookings: [booking({})],
+    mode: 'teachers',
+  })
   assert.equal(matchesSearch(entry, ''), true, 'empty term matches everything')
   assert.equal(matchesSearch(entry, 'ali'), true, 'matches entry name')
   assert.equal(matchesSearch(entry, 'MATH'), true, 'match is case-insensitive')
   assert.equal(matchesSearch(entry, 'bob'), true, 'matches a student of this teacher')
   assert.equal(matchesSearch(entry, 'zzz'), false)
+}
+
+// --- deactivated teachers sink below active ones, alphabetical within ------
+{
+  const entry = (name: string, status?: 'active' | 'deactivated') =>
+    buildEntry({ id: name.length, name, subjects: [], bookings: [], mode: 'teachers', status })
+
+  const sorted = sortEntriesForDisplay([
+    entry('Zoe', 'active'),
+    entry('Bob', 'deactivated'),
+    entry('Alice', 'deactivated'),
+    entry('Carol', 'active'),
+  ])
+  assert.deepEqual(
+    sorted.map((e) => e.name),
+    ['Carol', 'Zoe', 'Alice', 'Bob'],
+    'active first (A-Z), then deactivated (A-Z)'
+  )
+
+  // Students have no status, so the sort must collapse to plain alphabetical.
+  const students = sortEntriesForDisplay([
+    buildEntry({ id: 2, name: 'Zed', subjects: [], bookings: [], mode: 'students' }),
+    buildEntry({ id: 1, name: 'Ann', subjects: [], bookings: [], mode: 'students' }),
+  ])
+  assert.deepEqual(
+    students.map((e) => e.name),
+    ['Ann', 'Zed'],
+    'statusless entries sort alphabetically'
+  )
 }
 
 console.log('✓ admin roster grouping behaves')

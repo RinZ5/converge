@@ -2,7 +2,12 @@
   import { ref, computed, watch, onMounted } from 'vue'
   import { CalendarPlus, ChevronDown, Loader2, MapPin, Search, Settings, User } from '@lucide/vue'
   import PageLayout from '../components/PageLayout.vue'
-  import { useAdminRoster, type RosterMode } from '../composables/useAdminRoster'
+  import {
+    useAdminRoster,
+    type RosterEntry,
+    type RosterMode,
+    type RosterStatus,
+  } from '../composables/useAdminRoster'
   import { Badge } from '@/components/ui/badge'
   import { Button } from '@/components/ui/button'
   import { Card, CardContent } from '@/components/ui/card'
@@ -16,12 +21,19 @@
 
   const expanded = ref<Set<number>>(new Set())
 
-  const isOpen = (id: number) => expanded.value.has(id)
+  const isDeactivated = (entry: RosterEntry): boolean => entry.status === 'deactivated'
 
-  const toggle = (id: number) => {
+  // A deactivated teacher does not open. Gating isOpen on it too means a row
+  // cannot be left stuck open if an entry ever changes status under us.
+  const canExpand = (entry: RosterEntry): boolean => !isDeactivated(entry)
+
+  const isOpen = (entry: RosterEntry): boolean => canExpand(entry) && expanded.value.has(entry.id)
+
+  const toggle = (entry: RosterEntry) => {
+    if (!canExpand(entry)) return
     const next = new Set(expanded.value)
-    if (next.has(id)) next.delete(id)
-    else next.add(id)
+    if (next.has(entry.id)) next.delete(entry.id)
+    else next.add(entry.id)
     expanded.value = next
   }
 
@@ -35,9 +47,16 @@
   const entryNoun = computed(() => (mode.value === 'teachers' ? 'teacher' : 'student'))
   const peopleNoun = computed(() => (mode.value === 'teachers' ? 'student' : 'teacher'))
 
-  const noSubjectsLabel = computed(() =>
-    mode.value === 'teachers' ? 'No subjects assigned' : 'No subjects booked yet'
-  )
+  const statusLabel = (status: RosterStatus): string =>
+    status === 'active' ? 'Active' : 'Deactivated'
+
+  // GET /teachers?subject_id=... returns active teachers only, so a deactivated
+  // teacher always comes back with an empty subject list even when subjects are
+  // assigned. Saying "no subjects assigned" there would be a lie.
+  const subjectsPlaceholder = (entry: RosterEntry): string => {
+    if (isDeactivated(entry)) return 'Subjects hidden while deactivated'
+    return mode.value === 'teachers' ? 'No subjects assigned' : 'No subjects booked yet'
+  }
 
   const noPeopleLabel = computed(() =>
     mode.value === 'teachers'
@@ -126,7 +145,7 @@
             type="search"
             :aria-label="`Search ${entryNoun}s`"
             class="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border py-1 pr-3 pl-9 text-sm shadow-xs outline-none focus-visible:ring-3"
-            :placeholder="`Search by name, subject, or ${peopleNoun}`"
+            placeholder="Search by name"
           />
         </div>
 
@@ -176,19 +195,39 @@
         <Card class="gap-0 overflow-hidden py-0">
           <CardContent class="divide-border divide-y px-0">
             <div v-for="entry in entries" :key="entry.id">
-              <button
-                type="button"
-                class="hover:bg-muted/40 flex w-full items-start gap-3 px-4 py-3 text-left transition-colors sm:px-6"
-                :aria-expanded="isOpen(entry.id)"
-                @click="toggle(entry.id)"
+              <component
+                :is="canExpand(entry) ? 'button' : 'div'"
+                :type="canExpand(entry) ? 'button' : undefined"
+                :aria-expanded="canExpand(entry) ? isOpen(entry) : undefined"
+                class="flex w-full items-start gap-3 px-4 py-3 text-left sm:px-6"
+                :class="canExpand(entry) ? 'hover:bg-muted/40 transition-colors' : 'cursor-default'"
+                @click="toggle(entry)"
               >
-                <ChevronDown
-                  class="text-muted-foreground mt-0.5 size-4 shrink-0 transition-transform"
-                  :class="{ 'rotate-180': isOpen(entry.id) }"
-                />
+                <span class="flex h-5 shrink-0 items-center gap-2" aria-hidden="true">
+                  <span class="flex w-2.5 justify-center">
+                    <span
+                      v-if="entry.status"
+                      class="size-2.5 rounded-full"
+                      :class="entry.status === 'active' ? 'bg-success' : 'bg-danger'"
+                    ></span>
+                  </span>
+
+                  <span class="flex w-4 justify-center">
+                    <ChevronDown
+                      v-if="canExpand(entry)"
+                      class="text-muted-foreground size-4 transition-transform"
+                      :class="{ 'rotate-180': isOpen(entry) }"
+                    />
+                  </span>
+                </span>
 
                 <span class="flex min-w-0 flex-1 flex-col gap-1.5">
-                  <span class="truncate text-sm font-medium">{{ entry.name }}</span>
+                  <span class="truncate text-sm font-medium">
+                    {{ entry.name }}
+                    <span v-if="entry.status" class="sr-only">
+                      — {{ statusLabel(entry.status) }}
+                    </span>
+                  </span>
                   <span v-if="entry.subjects.length" class="flex flex-wrap gap-1">
                     <Badge
                       v-for="subject in entry.subjects"
@@ -199,10 +238,12 @@
                       {{ subject }}
                     </Badge>
                   </span>
-                  <span v-else class="text-muted-foreground text-xs">{{ noSubjectsLabel }}</span>
+                  <span v-else class="text-muted-foreground text-xs">{{
+                    subjectsPlaceholder(entry)
+                  }}</span>
                 </span>
 
-                <span class="flex shrink-0 flex-col items-end gap-1">
+                <span v-if="!isDeactivated(entry)" class="flex h-5 shrink-0 items-center">
                   <span v-if="entry.classCount === 0" class="text-muted-foreground text-sm">
                     No classes
                   </span>
@@ -216,17 +257,11 @@
                       {{ pluralize('class', entry.classCount, 'classes') }}
                     </span>
                   </span>
-                  <span
-                    v-if="entry.nextSession"
-                    class="text-muted-foreground hidden text-xs tabular-nums sm:block"
-                  >
-                    Next {{ formatSlot(entry.nextSession.startTime, entry.nextSession.endTime) }}
-                  </span>
                 </span>
-              </button>
+              </component>
 
               <div
-                v-if="isOpen(entry.id)"
+                v-if="isOpen(entry)"
                 class="border-border bg-muted/20 border-t px-4 py-3 sm:px-6"
               >
                 <p v-if="entry.people.length === 0" class="text-muted-foreground text-sm">
@@ -284,10 +319,25 @@
           </CardContent>
         </Card>
 
-        <p class="text-muted-foreground px-1 text-xs">
-          Showing {{ entries.length }} of {{ allEntries.length }}
-          {{ pluralize(entryNoun, allEntries.length) }}
-        </p>
+        <div
+          class="text-muted-foreground flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-1 text-xs"
+        >
+          <p>
+            Showing {{ entries.length }} of {{ allEntries.length }}
+            {{ pluralize(entryNoun, allEntries.length) }}
+          </p>
+
+          <div v-if="mode === 'teachers'" class="flex items-center gap-4">
+            <span class="flex items-center gap-1.5">
+              <span class="bg-success size-2 rounded-full" aria-hidden="true"></span>
+              Active
+            </span>
+            <span class="flex items-center gap-1.5">
+              <span class="bg-danger size-2 rounded-full" aria-hidden="true"></span>
+              Deactivated
+            </span>
+          </div>
+        </div>
       </template>
     </div>
   </PageLayout>

@@ -1,4 +1,4 @@
-import type { Booking } from '../types'
+import type { Booking, Teacher } from '../types'
 
 export type RosterMode = 'teachers' | 'students'
 
@@ -21,13 +21,17 @@ export interface RosterPerson {
   sessions: RosterSession[]
 }
 
+// Only the teacher side has a status; students carry none, so the field is
+// optional rather than a third "n/a" state the view would have to filter out.
+export type RosterStatus = Teacher['status']
+
 export interface RosterEntry {
   id: number
   name: string
   subjects: string[]
   people: RosterPerson[]
   classCount: number
-  nextSession: RosterSession | null
+  status?: RosterStatus
 }
 
 export const timeOf = (iso: string): number => {
@@ -88,20 +92,6 @@ export function groupByCounterpart(bookings: Booking[], mode: RosterMode): Roste
   return [...map.values()].sort(byName)
 }
 
-// `now` is a parameter rather than a Date.now() call so the result is testable
-// and so one render cannot straddle two different "now"s.
-export function nextSessionOf(people: RosterPerson[], now: number): RosterSession | null {
-  let soonest: RosterSession | null = null
-  for (const person of people) {
-    for (const session of person.sessions) {
-      const start = timeOf(session.startTime)
-      if (!Number.isFinite(start) || start < now) continue
-      if (!soonest || start < timeOf(soonest.startTime)) soonest = session
-    }
-  }
-  return soonest
-}
-
 // A student has no assigned-subject list of their own, so their subjects are the
 // distinct subjects they are actually booked for.
 export function subjectsFromBookings(bookings: Booking[]): string[] {
@@ -112,14 +102,23 @@ export function subjectsFromBookings(bookings: Booking[]): string[] {
   return names.sort((a, b) => a.localeCompare(b))
 }
 
-export function buildEntry(
-  id: number,
-  name: string,
-  subjects: string[],
-  bookings: Booking[],
-  mode: RosterMode,
-  now: number
-): RosterEntry {
+export interface BuildEntryInput {
+  id: number
+  name: string
+  subjects: string[]
+  bookings: Booking[]
+  mode: RosterMode
+  status?: RosterStatus
+}
+
+export function buildEntry({
+  id,
+  name,
+  subjects,
+  bookings,
+  mode,
+  status,
+}: BuildEntryInput): RosterEntry {
   const people = groupByCounterpart(bookings, mode)
   return {
     id,
@@ -127,7 +126,7 @@ export function buildEntry(
     subjects,
     people,
     classCount: bookings.length,
-    nextSession: nextSessionOf(people, now),
+    status,
   }
 }
 
@@ -156,5 +155,10 @@ export function matchesSearch(entry: RosterEntry, term: string): boolean {
   )
 }
 
-export const sortEntriesByName = (entries: RosterEntry[]): RosterEntry[] =>
-  [...entries].sort(byName)
+// Deactivated teachers sink below the active ones; within each group the order
+// is alphabetical. Students carry no status, so they all rank 0 and the sort
+// collapses back to plain alphabetical.
+const statusRank = (entry: RosterEntry): number => (entry.status === 'deactivated' ? 1 : 0)
+
+export const sortEntriesForDisplay = (entries: RosterEntry[]): RosterEntry[] =>
+  [...entries].sort((a, b) => statusRank(a) - statusRank(b) || byName(a, b))
