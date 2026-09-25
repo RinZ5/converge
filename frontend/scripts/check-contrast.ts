@@ -59,11 +59,6 @@ const PAIRS: [string, string, string, number][] = [
   ['warning as UI element', 'warning', 'bg-card', 3],
   ['accent stroke on card', 'accent-amber-strong', 'bg-card', 3],
   ['focus ring on card', 'ring', 'bg-card', 3],
-  ['score 5', 'score-5', 'bg-card', 3],
-  ['score 4', 'score-4', 'bg-card', 3],
-  ['score 3', 'score-3', 'bg-card', 3],
-  ['score 2', 'score-2', 'bg-card', 3],
-  ['score 1', 'score-1', 'bg-card', 3],
 ]
 
 const failures: string[] = []

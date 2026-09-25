@@ -1,9 +1,12 @@
 <script setup lang="ts">
-  import { ref, watch, computed } from 'vue'
-  import type { BookingResponse } from '../types'
-  import type { CartItem } from '../types/booking'
+  import { computed } from 'vue'
+  import { CalendarX, Loader2, Sparkles } from '@lucide/vue'
   import { rangesOverlap } from '../utils/dateValidation'
   import { useBranchCapacity } from '../composables/useBranchCapacity'
+  import { scoreColor } from '../utils/scoreColor'
+  import { Badge } from '@/components/ui/badge'
+  import { Button } from '@/components/ui/button'
+  import type { BookingAlternative, BookingResponse, CartItem } from '../types'
 
   interface Props {
     suggestions: BookingResponse | null
@@ -22,810 +25,215 @@
       startTime: string,
       endTime: string
     ): void
-    (e: 'reset'): void
   }>()
 
-  const bookedKeys = ref<Set<string>>(new Set())
   const { isAtCapacity } = useBranchCapacity()
-
-  const matchedCount = computed(() => {
-    if (!props.suggestions) return 0
-    return props.suggestions.results.filter(
-      (r) => r.exact_match || (r.alternatives && r.alternatives.length > 0)
-    ).length
-  })
-
-  const getBookingKey = (teacherId: number, startTime: string): string => {
-    return `${teacherId}-${startTime}`
-  }
-
-  const isInCart = (teacherId: number, startTime: string, endTime: string): boolean => {
-    const newStart = new Date(startTime)
-    const newEnd = new Date(endTime)
-
-    return props.cartItems.some((item) => {
-      if (item.teacher_id !== teacherId) return false
-
-      const itemStart = new Date(item.start_time)
-      const itemEnd = new Date(item.end_time)
-
-      return rangesOverlap(newStart, newEnd, itemStart, itemEnd)
-    })
-  }
-
-  const isBooked = (teacherId: number, startTime: string, endTime: string): boolean => {
-    return (
-      bookedKeys.value.has(getBookingKey(teacherId, startTime)) ||
-      isInCart(teacherId, startTime, endTime)
-    )
-  }
-
-  const handleBooking = (
-    teacherId: number,
-    teacherName: string,
-    startTime: string,
-    endTime: string
-  ): void => {
-    const key = getBookingKey(teacherId, startTime)
-    if (!bookedKeys.value.has(key)) {
-      bookedKeys.value.add(key)
-      emit('confirmBooking', teacherId, teacherName, startTime, endTime)
-    }
-  }
-
-  watch(
-    () => props.suggestions,
-    () => {
-      bookedKeys.value.clear()
-    }
-  )
-
-  const getScoreColor = (score: number): string => {
-    if (score >= 90) return 'score-excellent'
-    if (score >= 75) return 'score-high'
-    if (score >= 60) return 'score-medium'
-    if (score >= 45) return 'score-low'
-    return 'score-poor'
-  }
-
-  const formatTime = (dateStr: string): string => {
-    const date = new Date(dateStr)
-    const hours = date.getHours()
-    const minutes = date.getMinutes()
-    const ampm = hours >= 12 ? 'pm' : 'am'
-    const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours
-    const displayMinutes = minutes > 0 ? `.${String(minutes).padStart(2, '0')}` : ''
-    return `${displayHours}${displayMinutes}${ampm}`
-  }
-
-  const formatDate = (dateStr: string): string => {
-    const date = new Date(dateStr)
-    const dayName = date.toLocaleDateString('en-US', { weekday: 'long' })
-    const timeStr = formatTime(dateStr)
-    return `${dayName} ${timeStr}`
-  }
-
-  const isNextWeek = (dateStr: string): boolean => {
-    const date = new Date(dateStr)
-    const now = new Date()
-    const oneWeekFromNow = new Date(now)
-    oneWeekFromNow.setDate(now.getDate() + 7)
-    return date >= oneWeekFromNow
-  }
 
   const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
 
-  const getDayName = (dayOfWeek: number): string => {
-    return DAY_NAMES[dayOfWeek] || 'Unknown'
+  const dayFormat = new Intl.DateTimeFormat('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  })
+  const timeFormat = new Intl.DateTimeFormat('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+
+  // Always showing the date makes a slot that landed in a later week obvious on
+  // its own, which is what the old "(next week)" suffix was there to say.
+  const formatRange = (startTime: string, endTime: string): string => {
+    const start = new Date(startTime)
+    if (Number.isNaN(start.getTime())) return 'Unknown time'
+    const end = new Date(endTime)
+    const until = Number.isNaN(end.getTime()) ? '' : `–${timeFormat.format(end)}`
+    return `${dayFormat.format(start)} · ${timeFormat.format(start)}${until}`
+  }
+
+  // The cart is the only record of what has been taken. The old version also
+  // kept a local Set of "booked" keys, which stayed set even when adding to the
+  // cart failed -- the row then claimed to be booked when nothing was.
+  const isInCart = (option: BookingAlternative): boolean =>
+    props.cartItems.some(
+      (item) =>
+        item.teacher_id === option.teacher_id &&
+        rangesOverlap(
+          new Date(option.start_time),
+          new Date(option.end_time),
+          new Date(item.start_time),
+          new Date(item.end_time)
+        )
+    )
+
+  interface Option {
+    key: string
+    alternative: BookingAlternative
+    isExact: boolean
+    inCart: boolean
+    atCapacity: boolean
+  }
+
+  interface SlotGroup {
+    key: string
+    label: string
+    status: string
+    hasExact: boolean
+    options: Option[]
+  }
+
+  // exact_match and alternatives are the same shape, so they render through one
+  // list instead of two near-identical blocks with two sets of styles.
+  const groups = computed<SlotGroup[]>(() => {
+    const results = props.suggestions?.results ?? []
+    return results.map((result, index) => {
+      const raw: { alternative: BookingAlternative; isExact: boolean }[] = []
+      if (result.exact_match) raw.push({ alternative: result.exact_match, isExact: true })
+      for (const alternative of result.alternatives ?? []) raw.push({ alternative, isExact: false })
+
+      const options = raw.map(({ alternative, isExact }) => ({
+        key: `${alternative.teacher_id}-${alternative.start_time}`,
+        alternative,
+        isExact,
+        inCart: isInCart(alternative),
+        atCapacity: isAtCapacity(alternative.start_time, alternative.end_time),
+      }))
+
+      const slot = result.slot
+      return {
+        key: `${slot.day_of_week}-${slot.start}-${index}`,
+        label: `${DAY_NAMES[slot.day_of_week] ?? '?'} ${slot.start}–${slot.end}`,
+        hasExact: Boolean(result.exact_match),
+        status: result.exact_match
+          ? 'Exact match'
+          : options.length > 0
+            ? `${options.length} alternative${options.length === 1 ? '' : 's'}`
+            : 'No teacher available',
+        options,
+      }
+    })
+  })
+
+  const matchedCount = computed(() => groups.value.filter((g) => g.options.length > 0).length)
+
+  const handleAdd = (option: Option) => {
+    if (option.inCart) return
+    const { teacher_id, teacher_name, start_time, end_time } = option.alternative
+    emit('confirmBooking', teacher_id, teacher_name, start_time, end_time)
   }
 </script>
 
 <template>
-  <div class="results-container">
-    <div v-if="isEvaluating" class="results-loading">
-      <div class="loading-spinner">
-        <div class="spinner-ring"></div>
-        <div class="spinner-ring spinner-ring--delay"></div>
-        <div class="spinner-ring spinner-ring--delay-2"></div>
-      </div>
-      <p class="loading-text">Finding available teachers...</p>
+  <!-- Rendered inside SmartPath's CardContent, so the sections are bordered
+       blocks rather than Cards; nesting a Card here would double the chrome. -->
+  <div class="flex flex-col gap-4">
+    <div
+      v-if="isEvaluating"
+      class="text-muted-foreground flex items-center justify-center gap-2 py-8 text-sm"
+    >
+      <Loader2 class="size-4 animate-spin" />
+      Finding available teachers…
     </div>
 
-    <div v-if="showDetailedResults && suggestions" class="results-list">
-      <div class="results-summary">
-        <h3 class="summary-title">Booking Options Summary</h3>
-        <p class="summary-text">
-          <template v-if="matchedCount > 0">
-            Found {{ matchedCount }} time slot{{ matchedCount !== 1 ? 's' : '' }} with available
-            teachers.
-          </template>
-          <template v-else> No teachers available for the selected time slots. </template>
+    <template v-else-if="showDetailedResults && suggestions">
+      <p class="text-sm">
+        <template v-if="matchedCount > 0">
+          Found teachers for
+          <span class="font-medium">{{ matchedCount }}</span>
+          of {{ groups.length }} time window{{ groups.length === 1 ? '' : 's' }}.
+        </template>
+        <template v-else>No teachers available for the selected time windows.</template>
+      </p>
+
+      <div v-if="groups.length === 0" class="flex flex-col items-center gap-2 py-8 text-center">
+        <CalendarX class="text-muted-foreground size-6" />
+        <p class="text-sm font-medium">No teachers available</p>
+        <p class="text-muted-foreground text-sm">
+          Try adjusting your preferred days or times and search again.
         </p>
       </div>
 
-      <div
-        v-for="(slotResult, index) in suggestions.results"
-        :key="index"
-        class="result-card"
-        :style="{ '--stagger-index': index }"
-      >
-        <div class="result-header">
-          <div v-if="slotResult.exact_match">
-            <h4 class="result-title">
-              {{ formatDate(slotResult.exact_match.start_time) }} -
-              {{ formatTime(slotResult.exact_match.end_time) }}
-              <template v-if="isNextWeek(slotResult.exact_match.start_time)">
-                (next week)
-              </template>
-            </h4>
-          </div>
-          <div v-else>
-            <h4 class="result-title">
-              {{ getDayName(slotResult.slot.day_of_week) }} {{ slotResult.slot.start }} -
-              {{ slotResult.slot.end }}
-            </h4>
-            <p class="result-message">{{ slotResult.message }}</p>
-          </div>
-        </div>
-
-        <div
-          v-if="slotResult.exact_match"
-          class="match-exact"
-          :class="getScoreColor(slotResult.exact_match.score)"
-        >
-          <div class="match-content">
-            <div class="match-header">
-              <span class="match-name">{{ slotResult.exact_match.teacher_name }}</span>
-            </div>
-            <p class="match-score">Score: {{ slotResult.exact_match.score }}</p>
-            <p class="match-reasons">{{ slotResult.message }}</p>
-            <p
-              v-if="slotResult.exact_match.reasons && slotResult.exact_match.reasons.length > 0"
-              class="match-reasons"
-            >
-              {{ slotResult.exact_match.reasons.join(' • ') }}
-            </p>
-            <p
-              v-if="
-                isAtCapacity(slotResult.exact_match.start_time, slotResult.exact_match.end_time)
-              "
-              class="match-reasons"
-            >
-              At branch capacity — arrange another room.
-            </p>
-          </div>
-          <button
-            type="button"
-            class="match-button"
-            :class="{
-              'match-button--booked': isBooked(
-                slotResult.exact_match.teacher_id,
-                slotResult.exact_match.start_time,
-                slotResult.exact_match.end_time
-              ),
-            }"
-            :disabled="
-              isBooked(
-                slotResult.exact_match.teacher_id,
-                slotResult.exact_match.start_time,
-                slotResult.exact_match.end_time
-              )
-            "
-            @click="
-              handleBooking(
-                slotResult.exact_match.teacher_id,
-                slotResult.exact_match.teacher_name,
-                slotResult.exact_match.start_time,
-                slotResult.exact_match.end_time
-              )
-            "
-          >
-            {{
-              isBooked(
-                slotResult.exact_match.teacher_id,
-                slotResult.exact_match.start_time,
-                slotResult.exact_match.end_time
-              )
-                ? 'Booked'
-                : 'Book Now'
-            }}
-          </button>
-        </div>
-
-        <div
-          v-if="slotResult.alternatives && slotResult.alternatives.length > 0"
-          class="alternatives"
-        >
-          <p class="alternatives-title">Other Options</p>
+      <!-- One bordered list with tinted group headers, rather than bordered
+           option boxes nested inside a divided list inside a card: three levels
+           of boxing read as clutter, and the separation was doing the job twice. -->
+      <div v-else class="border-border divide-border divide-y overflow-hidden rounded-lg border">
+        <template v-for="group in groups" :key="group.key">
           <div
-            v-for="(alt, altIndex) in slotResult.alternatives"
-            :key="altIndex"
-            class="alternative-item"
+            class="bg-muted/50 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-3 py-2"
           >
-            <div class="alternative-content">
-              <div class="alternative-header">
-                <span class="alternative-name">{{ alt.teacher_name }}</span>
-                <span v-if="isAtCapacity(alt.start_time, alt.end_time)" class="badge badge-error">
-                  At capacity — arrange another room
-                </span>
-                <span v-if="alt.commute_minutes !== undefined" class="badge badge-info">
-                  {{ alt.commute_minutes }}m commute
-                </span>
-              </div>
-              <p class="alternative-score" :class="getScoreColor(alt.score)">
-                Score: {{ alt.score }}
-              </p>
-              <p class="alternative-time">
-                {{ formatDate(alt.start_time) }} - {{ formatTime(alt.end_time) }}
-                <template v-if="isNextWeek(alt.start_time)"> (next week)</template>
-              </p>
-              <p v-if="alt.reasons && alt.reasons.length > 0" class="alternative-reasons">
-                {{ alt.reasons.join(' • ') }}
-              </p>
-            </div>
-            <button
-              type="button"
-              class="alternative-button"
-              :class="{
-                'alternative-button--booked': isBooked(
-                  alt.teacher_id,
-                  alt.start_time,
-                  alt.end_time
-                ),
-              }"
-              :disabled="isBooked(alt.teacher_id, alt.start_time, alt.end_time)"
-              @click="handleBooking(alt.teacher_id, alt.teacher_name, alt.start_time, alt.end_time)"
+            <span class="text-xs font-semibold tracking-wide uppercase">{{ group.label }}</span>
+            <span
+              class="text-xs"
+              :class="group.hasExact ? 'text-success-text font-medium' : 'text-muted-foreground'"
             >
-              {{ isBooked(alt.teacher_id, alt.start_time, alt.end_time) ? 'Booked' : 'Book Now' }}
-            </button>
+              {{ group.status }}
+            </span>
           </div>
-        </div>
+
+          <p v-if="group.options.length === 0" class="text-muted-foreground px-3 py-3 text-sm">
+            No teacher is free near this window.
+          </p>
+
+          <div
+            v-for="option in group.options"
+            :key="option.key"
+            class="flex items-start gap-3 px-3 py-3"
+          >
+            <!-- The score as a colour: green at 100 through amber to red at 0.
+                 An exact match scores 100, so it reads fully green without
+                 needing a separate highlight. -->
+            <span
+              class="mt-0.5 w-1 shrink-0 self-stretch rounded-full"
+              :style="{ backgroundColor: scoreColor(option.alternative.score) }"
+              aria-hidden="true"
+            ></span>
+
+            <div class="flex min-w-0 flex-1 flex-col gap-1">
+              <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span class="text-sm font-medium">{{ option.alternative.teacher_name }}</span>
+                <Badge variant="outline" class="font-normal tabular-nums">
+                  Score {{ option.alternative.score }}
+                </Badge>
+                <Badge
+                  v-if="option.atCapacity"
+                  class="border-warning-border bg-warning-surface text-warning-text font-normal"
+                  :title="`This branch is already at capacity at this time \u2014 another room is needed.`"
+                >
+                  At capacity
+                </Badge>
+              </div>
+
+              <!-- The time offered is the answer, so it is not muted xs text. -->
+              <span class="text-sm tabular-nums">
+                {{ formatRange(option.alternative.start_time, option.alternative.end_time) }}
+              </span>
+
+              <span v-if="option.alternative.reasons?.length" class="text-muted-foreground text-xs">
+                {{ option.alternative.reasons.join(' \u00b7 ') }}
+              </span>
+            </div>
+
+            <Button
+              size="sm"
+              class="shrink-0 self-center"
+              :variant="option.inCart ? 'outline' : 'default'"
+              :disabled="option.inCart"
+              @click="handleAdd(option)"
+            >
+              {{ option.inCart ? 'In cart' : 'Add to cart' }}
+            </Button>
+          </div>
+        </template>
       </div>
+    </template>
 
-      <div v-if="!suggestions || suggestions.results.length === 0" class="empty-state">
-        <svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
-        <p class="empty-title">No teachers available</p>
-        <p class="empty-text">Try adjusting your preferred days or times and search again.</p>
-      </div>
-    </div>
-
-    <div v-if="showDetailedResults" class="results-actions">
-      <button type="button" class="action-button action-button--secondary" @click="emit('reset')">
-        Search Again
-      </button>
-    </div>
-
-    <div v-if="!isEvaluating && !showDetailedResults" class="results-idle">
-      <svg class="idle-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="1.5"
-          d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z"
-        />
-      </svg>
-      <p class="idle-title">No results yet</p>
-      <p class="idle-text">Fill out the form and search to see matching teachers here.</p>
+    <div v-else class="flex flex-col items-center gap-2 py-8 text-center">
+      <Sparkles class="text-muted-foreground size-6" />
+      <p class="text-sm font-medium">No results yet</p>
+      <p class="text-muted-foreground text-sm">
+        Add your preferred time windows and search to see matching teachers here.
+      </p>
     </div>
   </div>
 </template>
-
-<style scoped>
-  .results-container {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-    flex: 1;
-    overflow-y: auto;
-  }
-
-  .results-intro p {
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    line-height: 1.5;
-    margin: 0;
-  }
-
-  .results-loading {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 3rem 0;
-    gap: 1rem;
-  }
-
-  .loading-spinner {
-    position: relative;
-    width: 48px;
-    height: 48px;
-  }
-
-  .spinner-ring {
-    position: absolute;
-    inset: 0;
-    border: 2px solid transparent;
-    border-top-color: var(--primary-indigo);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-
-  .spinner-ring--delay {
-    inset: 4px;
-    border-top-color: var(--accent-sage);
-    animation: spin 1.2s linear infinite reverse;
-  }
-
-  .spinner-ring--delay-2 {
-    inset: 8px;
-    border-top-color: var(--text-muted);
-    animation: spin 0.8s linear infinite;
-  }
-
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
-
-  .loading-text {
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    font-family: 'Inter', sans-serif;
-    animation: pulse 2s ease-in-out infinite;
-  }
-
-  @keyframes pulse {
-    0%,
-    100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.6;
-    }
-  }
-
-  .results-summary {
-    padding: 1rem;
-    background: var(--bg-subtle);
-    border-radius: 8px;
-    border: 1px solid var(--border-subtle);
-    animation: fade-in 0.4s ease-out;
-  }
-
-  .summary-title {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin: 0 0 0.5rem 0;
-    font-family: 'Inter', sans-serif;
-  }
-
-  .summary-text {
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-    margin: 0;
-  }
-
-  .results-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .result-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-subtle);
-    border-radius: 8px;
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    animation: result-card-enter 0.5s cubic-bezier(0.25, 1, 0.5, 1) backwards;
-    animation-delay: calc(var(--stagger-index, 0) * 80ms + 0.2s);
-  }
-
-  @keyframes result-card-enter {
-    from {
-      opacity: 0;
-      transform: translateY(16px) scale(0.98);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-  }
-
-  @keyframes fade-in {
-    from {
-      opacity: 0;
-      transform: translateY(8px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .result-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-  }
-
-  .result-title {
-    font-size: 0.9375rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin: 0;
-    font-family: 'Inter', sans-serif;
-  }
-
-  .result-message {
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-    margin: 0.25rem 0 0 0;
-  }
-
-  .match-exact {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    padding: 0.75rem;
-    background: var(--bg-subtle);
-    border-radius: 6px;
-    border: 2px solid var(--accent-sage);
-  }
-
-  .match-content {
-    flex: 1;
-  }
-
-  .match-header {
-    display: flex;
-    align-items: center;
-    width: 100%;
-  }
-
-  .match-name {
-    font-weight: 600;
-    color: var(--text-primary);
-    font-size: 0.95rem;
-  }
-
-  .match-score {
-    font-size: 0.8rem;
-    font-weight: 500;
-    margin: 0.15rem 0 0 0;
-    font-family: 'JetBrains Mono', monospace;
-    color: var(--accent-sage);
-  }
-
-  .match-score.score-excellent {
-    color: var(--score-5);
-  }
-
-  .match-score.score-high {
-    color: var(--score-4);
-  }
-
-  .match-score.score-medium {
-    color: var(--score-3);
-  }
-
-  .match-score.score-low {
-    color: var(--score-2);
-  }
-
-  .match-score.score-poor {
-    color: var(--score-1);
-  }
-
-  .match-reasons {
-    font-size: 0.75rem;
-    margin: 0.15rem 0 0 0;
-    font-weight: 500;
-    color: var(--text-secondary);
-  }
-
-  .match-button {
-    padding: 0.5rem 1rem;
-    background: var(--accent-sage);
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-size: 0.8125rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
-    font-family: 'Inter', sans-serif;
-    white-space: nowrap;
-  }
-
-  .match-button:hover {
-    background: var(--primary-navy);
-  }
-
-  .match-button:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(157, 180, 160, 0.4);
-  }
-
-  .match-button--booked,
-  .match-button:disabled {
-    background: var(--border-medium);
-    color: var(--text-muted);
-    cursor: not-allowed;
-    opacity: 0.7;
-  }
-
-  .match-button--booked:hover,
-  .match-button:disabled:hover {
-    background: var(--border-medium);
-  }
-
-  .alternatives {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .alternatives-title {
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin: 0;
-    font-family: 'JetBrains Mono', monospace;
-  }
-
-  .alternative-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    padding: 0.75rem;
-    background: var(--bg-subtle);
-    border-radius: 6px;
-  }
-
-  .alternative-content {
-    flex: 1;
-  }
-
-  .alternative-header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-  }
-
-  .alternative-bulb {
-    font-size: 0.875rem;
-  }
-
-  .alternative-name {
-    font-weight: 500;
-    color: var(--text-primary);
-    font-size: 0.875rem;
-  }
-
-  .badge {
-    font-size: 0.75rem;
-    padding: 0.125rem 0.5rem;
-    border-radius: 999px;
-    font-family: 'JetBrains Mono', monospace;
-  }
-
-  .badge-error {
-    background: var(--accent-coral);
-    color: white;
-  }
-
-  .badge-info {
-    background: var(--primary-indigo);
-    color: white;
-  }
-
-  .alternative-score {
-    font-size: 0.8125rem;
-    margin: 0.25rem 0 0 0;
-  }
-
-  .alternative-score.score-excellent {
-    color: var(--score-5);
-  }
-
-  .alternative-score.score-high {
-    color: var(--score-4);
-  }
-
-  .alternative-score.score-medium {
-    color: var(--score-3);
-  }
-
-  .alternative-score.score-low {
-    color: var(--score-2);
-  }
-
-  .alternative-score.score-poor {
-    color: var(--score-1);
-  }
-
-  .alternative-time {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    margin: 0;
-    font-family: 'JetBrains Mono', monospace;
-  }
-
-  .alternative-reasons {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    margin: 0.25rem 0 0 0;
-  }
-
-  .alternative-button {
-    padding: 0.5rem 1rem;
-    background: var(--accent-coral);
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
-    font-family: 'Inter', sans-serif;
-    white-space: nowrap;
-  }
-
-  .alternative-button:hover {
-    filter: brightness(0.9);
-  }
-
-  .alternative-button:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--danger) 40%, transparent);
-  }
-
-  .alternative-button--booked,
-  .alternative-button:disabled {
-    background: var(--border-medium);
-    color: var(--text-muted);
-    cursor: not-allowed;
-    opacity: 0.7;
-  }
-
-  .alternative-button--booked:hover,
-  .alternative-button:disabled:hover {
-    background: var(--border-medium);
-    filter: none;
-  }
-
-  .empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    padding: 3rem 1rem;
-    animation: fade-in 0.4s ease-out;
-  }
-
-  .empty-icon {
-    width: 4rem;
-    height: 4rem;
-    color: var(--border-strong);
-    margin: 0 0 1rem 0;
-  }
-
-  .empty-title {
-    font-size: 0.9375rem;
-    font-weight: 500;
-    color: var(--text-primary);
-    margin: 0 0 0.5rem 0;
-  }
-
-  .empty-text {
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-    margin: 0;
-  }
-
-  .results-idle {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 3rem 1rem;
-    min-height: 200px;
-    animation: fade-in 0.4s ease-out;
-  }
-
-  .idle-icon {
-    width: 2.5rem;
-    height: 2.5rem;
-    color: var(--border-strong);
-    margin: 0 0 1rem 0;
-  }
-
-  .idle-title {
-    font-size: 0.9375rem;
-    font-weight: 500;
-    color: var(--text-primary);
-    margin: 0 0 0.5rem 0;
-  }
-
-  .idle-text {
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-    margin: 0;
-    max-width: 22rem;
-  }
-
-  .results-actions {
-    display: flex;
-    gap: 0.75rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--border-subtle);
-  }
-
-  .action-button {
-    flex: 1;
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
-    font-family: 'Inter', sans-serif;
-  }
-
-  .action-button--secondary {
-    background: var(--bg-card);
-    color: var(--text-primary);
-    border: 1px solid var(--border-strong);
-  }
-
-  .action-button--secondary:hover {
-    background: var(--bg-cream);
-  }
-
-  .action-button--secondary:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-navy) 20%, transparent);
-  }
-
-  @media (max-width: 767px) {
-    .match-exact,
-    .alternative-item {
-      flex-direction: column;
-      align-items: stretch;
-    }
-
-    .match-button,
-    .alternative-button {
-      width: 100%;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
-    }
-  }
-</style>

@@ -15,7 +15,8 @@
     "check:tokens": "node --experimental-strip-types scripts/check-design-tokens.ts",
     "check:roster": "node --experimental-strip-types scripts/check-admin-roster.ts",
     "check:notify": "node --experimental-strip-types scripts/check-notification-timeout.ts",
-    "check:contrast": "node --experimental-strip-types scripts/check-contrast.ts"
+    "check:contrast": "node --experimental-strip-types scripts/check-contrast.ts",
+    "check:score": "node --experimental-strip-types scripts/check-score-color.ts"
   },
   "dependencies": {
     "@fontsource/instrument-sans": "^5.3.0",

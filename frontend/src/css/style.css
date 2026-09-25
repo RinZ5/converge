@@ -167,15 +167,6 @@
 
   /* Deeper coral for the hover state of a coral fill. */
   --accent-coral-deep: #b85c4e;
-
-  /* Five-step quality ramp for booking scores. Replaces the raw
-   * green/lime/yellow/orange/red Tailwind ramp with the same ordering held
-   * inside the palette's warmer temperature. */
-  --score-5: var(--success);
-  --score-4: #6f9a52;
-  --score-3: #a8912a;
-  --score-2: #cf7f3f;
-  --score-1: var(--danger);
 }
 
 /* ---------------------------------------------------------------------------
@@ -239,10 +230,6 @@
   --danger-text: #e8a79c;
   --danger-surface: #37211e;
   --danger-border: #5c3732;
-
-  --score-4: #8fae6b;
-  --score-3: #d4b23f;
-  --score-2: #d99358;
 }
 
 @theme inline {
