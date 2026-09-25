@@ -1,58 +1,145 @@
 <script setup lang="ts">
-  import { ref, onMounted } from 'vue'
-  import { useTeacherStore } from '../stores/teacherStore'
-  import { useScreenSize } from '../composables/useScreenSize'
-  import { useNotification } from '../composables/useNotification'
+  import { computed, ref, onMounted } from 'vue'
+  import { Loader2, Plus, Search } from '@lucide/vue'
   import PageLayout from '../components/PageLayout.vue'
   import ManagementNav from '../components/ManagementNav.vue'
-  import FormSelect from '../components/form/FormSelect.vue'
+  import { useTeacherStore } from '../stores/teacherStore'
+  import { useNotification } from '../composables/useNotification'
+  import { sortDeactivatedLast } from '../utils/status'
+  import { Button } from '@/components/ui/button'
+  import { Card, CardContent } from '@/components/ui/card'
+  import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+  import { Input } from '@/components/ui/input'
+  import { Label } from '@/components/ui/label'
+  import { Switch } from '@/components/ui/switch'
+  import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+  } from '@/components/ui/select'
+  import type { Teacher } from '../types'
 
   const store = useTeacherStore()
-  const { isMobile, isTablet } = useScreenSize()
   const { showSuccess, showError } = useNotification()
 
-  const newName = ref('')
-  const newEmail = ref('')
-  const newGender = ref<'male' | 'female' | 'lgbtq+'>('male')
+  const GENDERS = [
+    { value: 'male', label: 'Male' },
+    { value: 'female', label: 'Female' },
+    { value: 'lgbtq+', label: 'LGBTQ+' },
+  ]
 
-  const isLoading = ref(false)
+  const isLoadingList = ref(true)
+  const loadError = ref('')
+  const search = ref('')
+  const pendingIds = ref<Set<number>>(new Set())
 
-  onMounted(async () => {
-    store.teachers = []
-    await store.reloadTeachers()
-  })
+  const isPending = (id: number) => pendingIds.value.has(id)
 
-  const handleToggle = async (id: number, currentStatus: string) => {
+  const withPending = async (id: number, run: () => Promise<void>) => {
+    pendingIds.value = new Set(pendingIds.value).add(id)
     try {
-      await store.toggleTeacherStatus(id, currentStatus)
-      showSuccess(`Teacher deactivated successfully`)
-    } catch (err) {
-      showError(err, 'Failed to update teacher status')
+      await run()
+    } finally {
+      const next = new Set(pendingIds.value)
+      next.delete(id)
+      pendingIds.value = next
     }
   }
 
-  const handleGenderChange = async (id: number, gender: string) => {
+  // The previous version blanked store.teachers before fetching, so the list
+  // flashed empty on every visit. Keeping the old rows up while the new ones
+  // load is both calmer and honest -- they were accurate a moment ago.
+  const load = async () => {
+    isLoadingList.value = true
+    loadError.value = ''
     try {
-      await store.updateTeacherGender(id, gender)
-      showSuccess('Teacher gender updated successfully')
+      await store.reloadTeachers()
     } catch (err) {
-      showError(err, 'Failed to update teacher gender')
+      loadError.value = err instanceof Error ? err.message : 'Failed to load teachers'
+    } finally {
+      isLoadingList.value = false
     }
+  }
+
+  onMounted(load)
+
+  const allTeachers = computed<Teacher[]>(() => sortDeactivatedLast(store.teachers))
+
+  const teachers = computed<Teacher[]>(() => {
+    const term = search.value.trim().toLowerCase()
+    if (!term) return allTeachers.value
+    return allTeachers.value.filter(
+      (teacher) =>
+        teacher.name.toLowerCase().includes(term) || teacher.email.toLowerCase().includes(term)
+    )
+  })
+
+  const activeCount = computed(
+    () => store.teachers.filter((teacher) => teacher.status === 'active').length
+  )
+
+  const handleToggle = async (teacher: Teacher) => {
+    const next = teacher.status === 'active' ? 'deactivated' : 'active'
+    await withPending(teacher.id, async () => {
+      try {
+        await store.toggleTeacherStatus(teacher.id, teacher.status)
+        // The old message said "deactivated" in both directions.
+        showSuccess(`${teacher.name} ${next === 'active' ? 'activated' : 'deactivated'}`)
+      } catch (err) {
+        showError(err, `Failed to ${next === 'active' ? 'activate' : 'deactivate'} ${teacher.name}`)
+      }
+    })
+  }
+
+  const handleGenderChange = async (teacher: Teacher, gender: string) => {
+    if (gender === teacher.gender) return
+    await withPending(teacher.id, async () => {
+      try {
+        await store.updateTeacherGender(teacher.id, gender)
+        showSuccess(`${teacher.name}'s gender updated`)
+      } catch (err) {
+        showError(err, `Failed to update ${teacher.name}'s gender`)
+      }
+    })
+  }
+
+  const isAdding = ref(false)
+  const isSaving = ref(false)
+  const newName = ref('')
+  const newEmail = ref('')
+  const newGender = ref('male')
+
+  const trimmedName = computed(() => newName.value.trim())
+  const trimmedEmail = computed(() => newEmail.value.trim())
+
+  // Stated rather than only disabling the button, so it is clear what is missing.
+  const createBlocker = computed<string | null>(() => {
+    if (!trimmedName.value) return 'Enter the teacher’s name.'
+    if (!trimmedEmail.value) return 'Enter an email address.'
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail.value)) return 'That email looks invalid.'
+    return null
+  })
+
+  const openForm = () => {
+    newName.value = ''
+    newEmail.value = ''
+    newGender.value = 'male'
+    isAdding.value = true
   }
 
   const handleCreate = async () => {
-    if (!newName.value.trim() || !newEmail.value.trim()) return
-    isLoading.value = true
+    if (createBlocker.value || isSaving.value) return
+    isSaving.value = true
     try {
-      await store.createTeacher(newName.value.trim(), newEmail.value.trim(), newGender.value)
-      newName.value = ''
-      newEmail.value = ''
-      newGender.value = 'male'
-      showSuccess('Teacher created successfully')
+      await store.createTeacher(trimmedName.value, trimmedEmail.value, newGender.value)
+      showSuccess(`${trimmedName.value} added`)
+      isAdding.value = false
     } catch (err) {
-      showError(err, 'Failed to create teacher')
+      showError(err, 'Failed to add teacher')
     } finally {
-      isLoading.value = false
+      isSaving.value = false
     }
   }
 </script>
@@ -64,541 +151,193 @@
     back-to="/dashboard"
     back-label="Dashboard"
   >
-    <div class="manage-root">
-      <ManagementNav />
-      <div class="manage-section">
-        <div class="manage-section-heading">
-          <h2 class="manage-section-title">Add Teacher</h2>
-          <RouterLink to="/form" class="manage-btn manage-btn--secondary">
-            Set Teacher Availability
-          </RouterLink>
+    <ManagementNav />
+
+    <div class="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-6 sm:px-6 lg:px-8">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-2">
+        <div class="relative flex-1">
+          <Search
+            class="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
+          />
+          <Input
+            v-model="search"
+            type="search"
+            aria-label="Search teachers"
+            class="pl-9"
+            placeholder="Search by name"
+          />
         </div>
-        <div class="manage-form">
-          <div class="manage-form-row">
-            <div class="manage-form-field">
-              <label class="manage-label">Name</label>
-              <input
-                v-model="newName"
-                type="text"
-                class="manage-input"
-                placeholder="Teacher name"
-              />
+
+        <div class="flex gap-2">
+          <RouterLink to="/form" class="flex-1 sm:flex-none">
+            <Button variant="outline" class="w-full">Set availability</Button>
+          </RouterLink>
+          <Button class="flex-1 sm:flex-none" @click="openForm">
+            <Plus />
+            Add teacher
+          </Button>
+        </div>
+      </div>
+
+      <Dialog v-model:open="isAdding">
+        <DialogContent>
+          <DialogTitle>Add a teacher</DialogTitle>
+
+          <form class="flex flex-col gap-4" novalidate @submit.prevent="handleCreate">
+            <div class="flex flex-col gap-2">
+              <Label for="new-name">Name</Label>
+              <Input id="new-name" v-model="newName" placeholder="Teacher name" />
             </div>
-            <div class="manage-form-field">
-              <label class="manage-label">Email</label>
-              <input
+
+            <div class="flex flex-col gap-2">
+              <Label for="new-email">Email</Label>
+              <Input
+                id="new-email"
                 v-model="newEmail"
                 type="email"
-                class="manage-input"
                 placeholder="teacher@example.com"
               />
             </div>
-            <div class="manage-form-field manage-form-field--gender">
-              <label class="manage-label">Gender</label>
-              <FormSelect
-                v-model="newGender"
-                name="new_gender"
-                select-class="manage-select"
-                :show-error="false"
-              >
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="lgbtq+">LGBTQ+</option>
-              </FormSelect>
+
+            <div class="flex flex-col gap-2">
+              <Label for="new-gender">Gender</Label>
+              <Select v-model="newGender">
+                <SelectTrigger id="new-gender" class="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="option in GENDERS" :key="option.value" :value="option.value">
+                    {{ option.label }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <div class="manage-form-field manage-form-field--action">
-              <button
-                type="button"
-                class="manage-btn manage-btn--primary"
-                :disabled="!newName.trim() || !newEmail.trim() || isLoading"
-                @click="handleCreate"
-              >
-                {{ isLoading ? 'Adding...' : 'Add Teacher' }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div v-if="isMobile || isTablet" class="manage-section">
-        <h2 class="manage-section-title">Teachers ({{ store.teachers.length }})</h2>
-        <div v-if="store.teachers.length === 0" class="manage-empty">No teachers found</div>
-        <div v-else class="manage-card-list">
-          <div
-            v-for="teacher in store.teachers"
-            :key="teacher.id"
-            class="manage-card"
-            :class="{ 'manage-card--deactivated': teacher.status === 'deactivated' }"
-          >
-            <div class="manage-card-header">
-              <div>
-                <div class="manage-card-name">{{ teacher.name }}</div>
-                <div class="manage-card-email">{{ teacher.email }}</div>
+
+            <div class="flex items-center justify-between gap-3">
+              <p v-if="createBlocker" class="text-muted-foreground text-sm">{{ createBlocker }}</p>
+              <span v-else></span>
+              <div class="flex gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  :disabled="isSaving"
+                  @click="isAdding = false"
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" :disabled="createBlocker !== null || isSaving">
+                  <Loader2 v-if="isSaving" class="animate-spin" />
+                  Add teacher
+                </Button>
               </div>
-              <button
-                type="button"
-                class="manage-toggle"
-                :class="{ 'manage-toggle--active': teacher.status === 'active' }"
-                :aria-label="`Toggle ${teacher.name} status`"
-                @click="handleToggle(teacher.id, teacher.status)"
-              >
-                <span class="manage-toggle-knob" />
-              </button>
             </div>
-            <div class="manage-card-row">
-              <span class="manage-card-label">Gender</span>
-              <select
-                class="manage-card-select"
-                :value="teacher.gender"
-                @change="handleGenderChange(teacher.id, ($event.target as HTMLSelectElement).value)"
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Card v-if="isLoadingList && store.teachers.length === 0">
+        <CardContent class="text-muted-foreground flex items-center gap-2 py-4 text-sm">
+          <Loader2 class="size-4 animate-spin" />
+          Loading teachers…
+        </CardContent>
+      </Card>
+
+      <Card v-else-if="loadError" class="border-destructive/30">
+        <CardContent class="flex flex-wrap items-center justify-between gap-3">
+          <p class="text-destructive text-sm">{{ loadError }}</p>
+          <Button variant="outline" @click="load">Retry</Button>
+        </CardContent>
+      </Card>
+
+      <Card v-else-if="allTeachers.length === 0">
+        <CardContent class="text-muted-foreground text-center text-sm"
+          >No teachers yet.</CardContent
+        >
+      </Card>
+
+      <Card v-else-if="teachers.length === 0">
+        <CardContent class="text-muted-foreground text-center text-sm">
+          No teachers match “{{ search }}”.
+        </CardContent>
+      </Card>
+
+      <template v-else>
+        <Card class="gap-0 overflow-hidden py-0">
+          <CardContent class="divide-border divide-y px-0">
+            <div
+              v-for="teacher in teachers"
+              :key="teacher.id"
+              class="flex flex-col gap-3 px-4 py-3 transition-opacity sm:flex-row sm:items-center sm:gap-4 sm:px-6"
+              :class="{ 'opacity-60': isPending(teacher.id) }"
+            >
+              <div class="flex min-w-0 flex-1 items-start gap-3">
+                <span class="flex h-5 shrink-0 items-center" aria-hidden="true">
+                  <span
+                    class="size-2.5 rounded-full"
+                    :class="teacher.status === 'active' ? 'bg-success' : 'bg-danger'"
+                  ></span>
+                </span>
+
+                <div class="flex min-w-0 flex-col">
+                  <span class="truncate text-sm font-medium">
+                    {{ teacher.name }}
+                    <span class="sr-only">
+                      — {{ teacher.status === 'active' ? 'Active' : 'Deactivated' }}
+                    </span>
+                  </span>
+                  <span class="text-muted-foreground truncate text-xs">{{ teacher.email }}</span>
+                </div>
+              </div>
+
+              <div
+                class="flex shrink-0 items-center justify-between gap-4 pl-5.5 sm:justify-end sm:pl-0"
               >
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="lgbtq+">LGBTQ+</option>
-              </select>
+                <Select
+                  :model-value="teacher.gender"
+                  :disabled="isPending(teacher.id)"
+                  @update:model-value="handleGenderChange(teacher, String($event))"
+                >
+                  <SelectTrigger :aria-label="`Gender for ${teacher.name}`" class="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem v-for="option in GENDERS" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Switch
+                  :model-value="teacher.status === 'active'"
+                  :disabled="isPending(teacher.id)"
+                  :aria-label="`${teacher.status === 'active' ? 'Deactivate' : 'Activate'} ${teacher.name}`"
+                  @update:model-value="handleToggle(teacher)"
+                />
+              </div>
             </div>
-            <div class="manage-card-row">
-              <span class="manage-card-label">Status</span>
-              <span
-                class="manage-badge"
-                :class="
-                  teacher.status === 'active' ? 'manage-badge--active' : 'manage-badge--deactivated'
-                "
-              >
-                {{ teacher.status }}
-              </span>
-            </div>
+          </CardContent>
+        </Card>
+
+        <div
+          class="text-muted-foreground flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-1 text-xs"
+        >
+          <p>
+            Showing {{ teachers.length }} of {{ allTeachers.length }} teachers ·
+            {{ activeCount }} active
+          </p>
+
+          <div class="flex items-center gap-4">
+            <span class="flex items-center gap-1.5">
+              <span class="bg-success size-2 rounded-full" aria-hidden="true"></span>
+              Active
+            </span>
+            <span class="flex items-center gap-1.5">
+              <span class="bg-danger size-2 rounded-full" aria-hidden="true"></span>
+              Deactivated
+            </span>
           </div>
         </div>
-      </div>
-      <div v-else class="manage-section">
-        <h2 class="manage-section-title">Teachers ({{ store.teachers.length }})</h2>
-        <div v-if="store.teachers.length === 0" class="manage-empty">No teachers found</div>
-        <div v-else class="manage-table-wrap">
-          <table class="manage-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Gender</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="teacher in store.teachers"
-                :key="teacher.id"
-                :class="{ 'manage-row--deactivated': teacher.status === 'deactivated' }"
-              >
-                <td class="manage-cell-name">{{ teacher.name }}</td>
-                <td class="manage-cell-email">{{ teacher.email }}</td>
-                <td>
-                  <select
-                    class="manage-table-select"
-                    :value="teacher.gender"
-                    @change="
-                      handleGenderChange(teacher.id, ($event.target as HTMLSelectElement).value)
-                    "
-                  >
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="lgbtq+">LGBTQ+</option>
-                  </select>
-                </td>
-                <td>
-                  <span
-                    class="manage-badge"
-                    :class="
-                      teacher.status === 'active'
-                        ? 'manage-badge--active'
-                        : 'manage-badge--deactivated'
-                    "
-                  >
-                    {{ teacher.status }}
-                  </span>
-                </td>
-                <td>
-                  <button
-                    type="button"
-                    class="manage-toggle"
-                    :class="{ 'manage-toggle--active': teacher.status === 'active' }"
-                    :aria-label="`Toggle ${teacher.name} status`"
-                    @click="handleToggle(teacher.id, teacher.status)"
-                  />
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+      </template>
     </div>
   </PageLayout>
 </template>
-
-<style scoped>
-  .manage-root {
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-  }
-
-  .manage-section {
-    padding: 1.5rem;
-    max-width: 64rem;
-    margin: 0 auto;
-  }
-
-  .manage-section-title {
-    margin: 0 0 1rem;
-    font-family: 'Instrument Sans', sans-serif;
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
-  .manage-section-heading {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    margin-bottom: 1rem;
-  }
-
-  .manage-section-heading .manage-section-title {
-    margin-bottom: 0;
-  }
-
-  .manage-form {
-    background: var(--bg-card);
-    border: 1px solid var(--border-subtle);
-    border-radius: 0.75rem;
-    padding: 1.25rem;
-  }
-
-  .manage-form-row {
-    display: flex;
-    gap: 1rem;
-    align-items: flex-end;
-  }
-
-  .manage-form-field {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-  }
-
-  .manage-form-field--gender {
-    flex: 0 0 8rem;
-  }
-
-  .manage-form-field--action {
-    flex: 0 0 auto;
-  }
-
-  .manage-label {
-    font-family: Inter, sans-serif;
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-  }
-
-  .manage-input {
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
-    font-family: Inter, sans-serif;
-    color: var(--text-primary);
-    background: var(--bg-cream);
-    border: 1px solid var(--border-medium);
-    border-radius: 0.5rem;
-    outline: none;
-    transition: border-color 0.15s;
-  }
-
-  .manage-input:focus {
-    border-color: var(--accent-sage);
-    box-shadow: 0 0 0 3px rgba(157, 180, 160, 0.15);
-  }
-
-  .manage-select {
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
-    font-family: Inter, sans-serif;
-    color: var(--text-primary);
-    background: var(--bg-cream);
-    border: 1px solid var(--border-medium);
-    border-radius: 0.5rem;
-    outline: none;
-    cursor: pointer;
-  }
-
-  .manage-btn {
-    padding: 0.5rem 1.25rem;
-    font-size: 0.875rem;
-    font-family: Inter, sans-serif;
-    font-weight: 500;
-    border: none;
-    border-radius: 0.5rem;
-    cursor: pointer;
-    transition: all 0.15s;
-    white-space: nowrap;
-  }
-
-  .manage-btn--primary {
-    color: var(--on-accent);
-    background: var(--primary-indigo);
-  }
-
-  .manage-btn--primary:hover:not(:disabled) {
-    opacity: 0.9;
-  }
-
-  .manage-btn--secondary {
-    color: var(--primary-indigo);
-    background: var(--bg-card);
-    border: 1px solid var(--primary-indigo);
-    text-decoration: none;
-  }
-
-  .manage-btn--secondary:hover {
-    color: var(--on-accent);
-    background: var(--primary-indigo);
-  }
-
-  .manage-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .manage-empty {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 10rem;
-    font-family: Inter, sans-serif;
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    border-radius: 0.75rem;
-    border: 2px dashed var(--border-medium);
-    background: var(--bg-subtle);
-  }
-
-  .manage-card-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .manage-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-subtle);
-    border-radius: 0.75rem;
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .manage-card--deactivated {
-    opacity: 0.6;
-  }
-
-  .manage-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-  }
-
-  .manage-card-name {
-    font-family: Inter, sans-serif;
-    font-size: 0.9375rem;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
-  .manage-card-email {
-    font-family: Inter, sans-serif;
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-    margin-top: 0.125rem;
-  }
-
-  .manage-card-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .manage-card-label {
-    font-family: Inter, sans-serif;
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-  }
-
-  .manage-card-select {
-    padding: 0.375rem 0.625rem;
-    font-size: 0.8125rem;
-    font-family: Inter, sans-serif;
-    color: var(--text-primary);
-    background: var(--bg-cream);
-    border: 1px solid var(--border-medium);
-    border-radius: 0.375rem;
-    cursor: pointer;
-  }
-
-  .manage-table-wrap {
-    overflow-x: auto;
-    border-radius: 0.75rem;
-    border: 1px solid var(--border-subtle);
-  }
-
-  .manage-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-family: Inter, sans-serif;
-  }
-
-  .manage-table th {
-    text-align: left;
-    padding: 0.75rem 1rem;
-    font-size: 0.6875rem;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    background: var(--bg-subtle);
-    border-bottom: 1px solid var(--border-subtle);
-  }
-
-  .manage-table td {
-    padding: 0.75rem 1rem;
-    font-size: 0.875rem;
-    color: var(--text-primary);
-    border-bottom: 1px solid var(--border-subtle);
-    vertical-align: middle;
-  }
-
-  .manage-table tbody tr:last-child td {
-    border-bottom: none;
-  }
-
-  .manage-row--deactivated {
-    opacity: 0.55;
-  }
-
-  .manage-cell-name {
-    font-weight: 500;
-  }
-
-  .manage-cell-email {
-    color: var(--text-secondary);
-  }
-
-  .manage-table-select {
-    padding: 0.375rem 0.625rem;
-    font-size: 0.8125rem;
-    font-family: Inter, sans-serif;
-    color: var(--text-primary);
-    background: var(--bg-cream);
-    border: 1px solid var(--border-medium);
-    border-radius: 0.375rem;
-    cursor: pointer;
-  }
-
-  .manage-badge {
-    display: inline-block;
-    padding: 0.1875rem 0.5rem;
-    font-size: 0.6875rem;
-    font-weight: 600;
-    border-radius: 9999px;
-    text-transform: capitalize;
-  }
-
-  .manage-badge--active {
-    color: var(--success-text);
-    background: var(--success-surface);
-  }
-
-  .manage-badge--deactivated {
-    color: var(--danger-text);
-    background: var(--danger-surface);
-  }
-
-  .manage-toggle {
-    position: relative;
-    width: 2.5rem;
-    height: 1.375rem;
-    background: var(--neutral-400);
-    border: none;
-    border-radius: 9999px;
-    cursor: pointer;
-    transition: background 0.2s;
-    flex-shrink: 0;
-    padding: 0;
-  }
-
-  .manage-toggle--active {
-    background: var(--primary-indigo);
-  }
-
-  .manage-toggle-knob,
-  .manage-toggle::after {
-    content: '';
-    position: absolute;
-    top: 0.1875rem;
-    left: 0.1875rem;
-    width: 1rem;
-    height: 1rem;
-    background: var(--bg-card);
-    border-radius: 50%;
-    transition: transform 0.2s;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
-  }
-
-  .manage-toggle--active::after {
-    transform: translateX(1.125rem);
-  }
-
-  @media (max-width: 767px) {
-    .manage-section {
-      padding: 1rem;
-    }
-
-    .manage-form-row {
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-
-    .manage-form-field--gender {
-      flex: 1;
-    }
-
-    .manage-form-field--action {
-      flex: 1;
-    }
-
-    .manage-btn {
-      width: 100%;
-    }
-
-    .manage-section-title {
-      font-size: 1rem;
-    }
-
-    .manage-section-heading {
-      align-items: flex-start;
-      flex-direction: column;
-    }
-  }
-
-  @media (min-width: 768px) and (max-width: 1023px) {
-    .manage-section {
-      padding: 1.25rem;
-    }
-  }
-</style>

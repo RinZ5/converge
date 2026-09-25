@@ -1,72 +1,39 @@
 <script setup lang="ts">
   import { useRoute } from 'vue-router'
-  import { computed } from 'vue'
+  import { Building2, Car, GraduationCap, Users } from '@lucide/vue'
 
   const route = useRoute()
-  const currentPath = computed(() => route.path)
 
   const tabs = [
-    { label: 'Teachers', path: '/manage' },
-    { label: 'Branches', path: '/manage/branches' },
-    { label: 'Commute', path: '/manage/commute' },
-    { label: 'Accounts', path: '/manage/accounts' },
+    { label: 'Teachers', path: '/manage', icon: GraduationCap },
+    { label: 'Branches', path: '/manage/branches', icon: Building2 },
+    { label: 'Commute', path: '/manage/commute', icon: Car },
+    { label: 'Accounts', path: '/manage/accounts', icon: Users },
   ]
 </script>
 
 <template>
-  <nav class="manage-nav" aria-label="Management navigation">
-    <router-link
-      v-for="tab in tabs"
-      :key="tab.path"
-      :to="tab.path"
-      class="manage-nav-tab"
-      :class="{ 'manage-nav-tab--active': currentPath === tab.path }"
-    >
-      {{ tab.label }}
-    </router-link>
+  <nav aria-label="Management sections">
+    <div class="mx-auto flex w-full max-w-6xl flex-col gap-2 px-4 pt-4 sm:px-6 lg:px-8">
+      <p class="text-muted-foreground text-2xs font-semibold tracking-wider uppercase">Manage</p>
+
+      <div class="flex flex-wrap gap-2">
+        <RouterLink
+          v-for="tab in tabs"
+          :key="tab.path"
+          :to="tab.path"
+          :aria-current="route.path === tab.path ? 'page' : undefined"
+          class="focus-visible:ring-ring/50 inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors outline-none focus-visible:ring-3"
+          :class="
+            route.path === tab.path
+              ? 'bg-primary text-primary-foreground border-transparent shadow-xs'
+              : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground'
+          "
+        >
+          <component :is="tab.icon" class="size-4" />
+          {{ tab.label }}
+        </RouterLink>
+      </div>
+    </div>
   </nav>
 </template>
-
-<style scoped>
-  .manage-nav {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 1rem 1.5rem 0;
-    max-width: 64rem;
-    margin: 0 auto;
-  }
-
-  .manage-nav-tab {
-    padding: 0.5rem 1.25rem;
-    font-family: Inter, sans-serif;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--text-secondary);
-    text-decoration: none;
-    border-radius: 9999px;
-    transition: all 0.15s;
-  }
-
-  .manage-nav-tab:hover {
-    color: var(--text-primary);
-    background: var(--bg-subtle);
-  }
-
-  .manage-nav-tab--active {
-    color: var(--on-accent);
-    background: var(--primary-indigo);
-  }
-
-  .manage-nav-tab--active:hover {
-    color: var(--on-accent);
-    background: var(--primary-indigo);
-  }
-
-  @media (max-width: 767px) {
-    .manage-nav {
-      padding: 1rem 1rem 0;
-    }
-  }
-</style>

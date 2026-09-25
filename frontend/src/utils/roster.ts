@@ -1,3 +1,4 @@
+import { sortDeactivatedLast } from './status.ts'
 import type { Booking, Teacher } from '../types'
 
 export type RosterMode = 'teachers' | 'students'
@@ -155,10 +156,5 @@ export function matchesSearch(entry: RosterEntry, term: string): boolean {
   )
 }
 
-// Deactivated teachers sink below the active ones; within each group the order
-// is alphabetical. Students carry no status, so they all rank 0 and the sort
-// collapses back to plain alphabetical.
-const statusRank = (entry: RosterEntry): number => (entry.status === 'deactivated' ? 1 : 0)
-
 export const sortEntriesForDisplay = (entries: RosterEntry[]): RosterEntry[] =>
-  [...entries].sort((a, b) => statusRank(a) - statusRank(b) || byName(a, b))
+  sortDeactivatedLast(entries)
