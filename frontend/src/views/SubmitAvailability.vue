@@ -160,7 +160,7 @@
             </button>
             <button
               type="button"
-              class="cursor-pointer rounded-[10px] border-none bg-[linear-gradient(135deg,var(--accent-sage)_0%,var(--accent-mint)_100%)] px-5 py-3 font-[Inter,sans-serif] text-sm font-semibold text-white shadow-[0_4px_12px_rgba(157,180,160,0.3)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_6px_16px_rgba(157,180,160,0.4)]"
+              class="cursor-pointer rounded-[10px] border-none bg-(--success) px-5 py-3 font-[Inter,sans-serif] text-sm font-semibold text-white shadow-[0_4px_12px_rgba(157,180,160,0.3)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_6px_16px_rgba(157,180,160,0.4)]"
               @click="confirmSubmit"
             >
               Confirm

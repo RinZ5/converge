@@ -239,12 +239,12 @@
 
   .navbar-cart--active {
     color: var(--primary-navy);
-    background: color-mix(in srgb, var(--primary-navy) 10%, transparent);
-    border-color: color-mix(in srgb, var(--primary-navy) 20%, transparent);
+    background: color-mix(in srgb, var(--accent-amber) 18%, transparent);
+    border-color: color-mix(in srgb, var(--accent-amber) 35%, transparent);
   }
 
   .navbar-cart--active:hover {
-    background: color-mix(in srgb, var(--primary-navy) 15%, transparent);
+    background: color-mix(in srgb, var(--accent-amber) 26%, transparent);
   }
 
   .navbar-cart-icon {
@@ -266,8 +266,8 @@
     font-size: 0.5625rem;
     font-weight: 600;
     font-family: 'JetBrains Mono', 'SF Mono', monospace;
-    color: var(--on-accent);
-    background: var(--danger);
+    color: var(--on-amber);
+    background: var(--accent-amber);
     border-radius: 9999px;
     border: 2px solid var(--bg-card);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);

@@ -29,14 +29,25 @@
   --accent-sage: #9db4a0;
   --accent-mint: #a8c9b8;
 
-  /* Suggestion Colors (Yellow/Gold) */
-  --accent-gold: #f4b942;
-  --accent-gold-light: #f7c96f;
-  --accent-gold-soft: rgba(244, 185, 66, 0.15);
+  /* The 10% accent of the 60/30/10 split: 60% cream/card surface, 30% deep
+   * sage, 10% amber. It is the only colour allowed to pull the eye in chrome
+   * (cart badge, TODAY, suggestions, focus ring). Terracotta and mint used to
+   * compete for this job; they are now semantic-only and surface-only.
+   *
+   * White on amber is 1.77:1, so an amber fill always takes dark ink. That is
+   * what --on-amber is for; never pair amber with --on-accent. */
+  --accent-amber: #e0a42c;
+  --accent-amber-light: #f0c46a;
+  /* Strokes, rings and amber-coloured marks on a white surface. The fill step
+   * above is only 2.21:1 against white, which fails WCAG 1.4.11 for non-text
+   * UI; this one is 3.75:1. Never use it as a fill under dark ink (3.82:1). */
+  --accent-amber-strong: #a87d0e;
+  --accent-amber-soft: color-mix(in srgb, #e0a42c 15%, transparent);
+  --on-amber: #1a2e28;
 
   --text-primary: #1a2e28;
   --text-secondary: #4a5c52;
-  --text-muted: #7a8a82;
+  --text-muted: #68766f;
 
   --border-subtle: #d8e2dc;
   --border-medium: #b8c9b9;
@@ -93,16 +104,16 @@
   /* --accent-coral is a soft tint meant for alert *backgrounds*; it fails
    * contrast as a text/solid-button color, so destructive uses a deeper
    * terracotta from the same family. */
-  --destructive: #c0574a;
+  --destructive: #bf5548;
   --destructive-foreground: #ffffff;
 
   --border: var(--border-subtle);
   --input: var(--border-subtle);
-  --ring: var(--accent-sage);
+  --ring: var(--accent-amber-strong);
 
   --chart-1: var(--primary-navy);
   --chart-2: var(--accent-sage);
-  --chart-3: var(--accent-gold);
+  --chart-3: var(--accent-amber);
   --chart-4: var(--accent-mint);
   --chart-5: var(--accent-coral);
 }
@@ -139,8 +150,8 @@
   --success-surface: #e4f0e9;
   --success-border: #bcdcc9;
 
-  --warning: #c98a1e;
-  --warning-text: #8a5d0f;
+  --warning: #b0651c;
+  --warning-text: #8a4a10;
   --warning-surface: #fdf3e0;
   --warning-border: #f2dcae;
 
@@ -162,7 +173,7 @@
    * inside the palette's warmer temperature. */
   --score-5: var(--success);
   --score-4: #6f9a52;
-  --score-3: #c9a227;
+  --score-3: #a8912a;
   --score-2: #cf7f3f;
   --score-1: var(--danger);
 }
@@ -200,9 +211,11 @@
   --accent-coral-light: #d89a8f;
   --accent-coral-deep: #a85f52;
 
-  --accent-gold: #d9a851;
-  --accent-gold-light: #e3bd76;
-  --accent-gold-soft: color-mix(in srgb, #d9a851 18%, transparent);
+  --accent-amber: #d9a851;
+  --accent-amber-light: #e3bd76;
+  --accent-amber-strong: #e3bd76;
+  --accent-amber-soft: color-mix(in srgb, #d9a851 18%, transparent);
+  --on-amber: #12201b;
 
   --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.28);
   --shadow-elevated: 0 4px 20px rgba(0, 0, 0, 0.5), 0 12px 40px rgba(0, 0, 0, 0.35);
@@ -218,7 +231,7 @@
   --success-surface: #1c3328;
   --success-border: #2f5442;
 
-  --warning: #d9a851;
+  --warning: #d08a45;
   --warning-text: #e8c98a;
   --warning-surface: #33290f;
   --warning-border: #5a4a1d;
@@ -288,6 +301,10 @@
   --color-danger-surface: var(--danger-surface);
   --color-danger-border: var(--danger-border);
   --color-on-accent: var(--on-accent);
+  --color-accent-amber: var(--accent-amber);
+  --color-accent-amber-light: var(--accent-amber-light);
+  --color-accent-amber-strong: var(--accent-amber-strong);
+  --color-on-amber: var(--on-amber);
 
   /* The only step below text-xs. Replaces the ad-hoc 0.65rem / 0.7rem /
    * 0.53125rem sizes that were scattered through scoped styles. */
@@ -419,15 +436,15 @@ body {
   top: 0;
   left: 50%;
   transform: translateX(-50%);
-  background: linear-gradient(135deg, var(--accent-sage) 0%, var(--accent-mint) 100%);
-  color: white;
+  background: var(--accent-amber);
+  color: var(--on-amber);
   padding: 4px 12px;
   font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: 0.05em;
   border-radius: 8px;
   font-family: 'JetBrains Mono', monospace;
-  box-shadow: 0 2px 6px rgba(157, 180, 160, 0.25);
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--accent-amber) 35%, transparent);
   z-index: 10;
 }
 
@@ -593,10 +610,10 @@ body {
 .fc-event.suggestion-exact {
   background: linear-gradient(
     135deg,
-    var(--accent-gold) 0%,
-    var(--accent-gold-light) 100%
+    var(--accent-amber) 0%,
+    var(--accent-amber-light) 100%
   ) !important;
-  border: 2px solid var(--accent-gold) !important;
+  border: 2px solid var(--accent-amber) !important;
   box-shadow:
     0 4px 16px rgba(244, 185, 66, 0.4),
     0 0 0 1px rgba(244, 185, 66, 0.2) !important;
@@ -610,8 +627,8 @@ body {
 }
 
 .fc-event.suggestion-alt {
-  background: var(--accent-gold-soft) !important;
-  border: 2px solid var(--accent-gold-light) !important;
+  background: var(--accent-amber-soft) !important;
+  border: 2px solid var(--accent-amber-light) !important;
   box-shadow: 0 2px 8px rgba(244, 185, 66, 0.2) !important;
 }
 
