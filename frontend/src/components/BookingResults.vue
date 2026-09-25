@@ -510,23 +510,23 @@
   }
 
   .match-score.score-excellent {
-    color: #22c55e;
+    color: var(--score-5);
   }
 
   .match-score.score-high {
-    color: #84cc16;
+    color: var(--score-4);
   }
 
   .match-score.score-medium {
-    color: #eab308;
+    color: var(--score-3);
   }
 
   .match-score.score-low {
-    color: #f97316;
+    color: var(--score-2);
   }
 
   .match-score.score-poor {
-    color: #ef4444;
+    color: var(--score-1);
   }
 
   .match-reasons {
@@ -642,23 +642,23 @@
   }
 
   .alternative-score.score-excellent {
-    color: #22c55e;
+    color: var(--score-5);
   }
 
   .alternative-score.score-high {
-    color: #84cc16;
+    color: var(--score-4);
   }
 
   .alternative-score.score-medium {
-    color: #eab308;
+    color: var(--score-3);
   }
 
   .alternative-score.score-low {
-    color: #f97316;
+    color: var(--score-2);
   }
 
   .alternative-score.score-poor {
-    color: #ef4444;
+    color: var(--score-1);
   }
 
   .alternative-time {
@@ -694,7 +694,7 @@
 
   .alternative-button:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px rgba(201, 109, 93, 0.4);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--danger) 40%, transparent);
   }
 
   .alternative-button--booked,
@@ -803,7 +803,7 @@
 
   .action-button--secondary:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(62, 76, 122, 0.2);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-navy) 20%, transparent);
   }
 
   @media (max-width: 767px) {

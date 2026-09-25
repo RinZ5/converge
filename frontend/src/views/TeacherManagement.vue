@@ -347,7 +347,7 @@
   }
 
   .manage-btn--primary {
-    color: #fff;
+    color: var(--on-accent);
     background: var(--primary-indigo);
   }
 
@@ -363,7 +363,7 @@
   }
 
   .manage-btn--secondary:hover {
-    color: #fff;
+    color: var(--on-accent);
     background: var(--primary-indigo);
   }
 
@@ -520,20 +520,20 @@
   }
 
   .manage-badge--active {
-    color: #166534;
-    background: #dcfce7;
+    color: var(--success-text);
+    background: var(--success-surface);
   }
 
   .manage-badge--deactivated {
-    color: #991b1b;
-    background: #fef2f2;
+    color: var(--danger-text);
+    background: var(--danger-surface);
   }
 
   .manage-toggle {
     position: relative;
     width: 2.5rem;
     height: 1.375rem;
-    background: #d1d5db;
+    background: var(--neutral-400);
     border: none;
     border-radius: 9999px;
     cursor: pointer;
@@ -554,7 +554,7 @@
     left: 0.1875rem;
     width: 1rem;
     height: 1rem;
-    background: #fff;
+    background: var(--bg-card);
     border-radius: 50%;
     transition: transform 0.2s;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);

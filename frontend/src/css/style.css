@@ -107,6 +107,131 @@
   --chart-5: var(--accent-coral);
 }
 
+/* ---------------------------------------------------------------------------
+ * Neutral ramp. These are not new colours: they formalise the Soft Sage values
+ * already defined above into a 50-950 scale, so a component never has to reach
+ * for a Tailwind default grey (#6b7280, #e5e7eb, ...) that sits outside the
+ * palette. Pick a step; never invent one.
+ * ------------------------------------------------------------------------- */
+:root {
+  --neutral-50: var(--bg-cream);
+  --neutral-100: var(--bg-subtle);
+  --neutral-200: #e8efe9;
+  --neutral-300: var(--border-subtle);
+  --neutral-400: var(--border-medium);
+  --neutral-500: var(--accent-sage);
+  --neutral-600: var(--text-muted);
+  --neutral-700: var(--text-secondary);
+  --neutral-800: var(--primary-navy);
+  --neutral-900: var(--primary-navy-deep);
+  --neutral-950: var(--text-primary);
+}
+
+/* ---------------------------------------------------------------------------
+ * Status tokens. Components used to hardcode Tailwind's green/red families
+ * (#166534 on #dcfce7, #b91c1c on #fef2f2), which read as a different product
+ * next to the sage palette. Each status carries the four roles a status needs:
+ * solid fill, readable text, tinted surface, and surface border.
+ * ------------------------------------------------------------------------- */
+:root {
+  --success: #3f7d5c;
+  --success-text: #2c5c42;
+  --success-surface: #e4f0e9;
+  --success-border: #bcdcc9;
+
+  --warning: #c98a1e;
+  --warning-text: #8a5d0f;
+  --warning-surface: #fdf3e0;
+  --warning-border: #f2dcae;
+
+  --danger: var(--destructive);
+  --danger-text: #9a3f34;
+  --danger-surface: #fbeceb;
+  --danger-border: #f0c9c4;
+
+  /* Text/iconography sitting on a saturated accent fill. Distinct from
+   * --primary-foreground (which is the cream page tint) because a coral or
+   * sage button needs true white to hold contrast. */
+  --on-accent: #ffffff;
+
+  /* Deeper coral for the hover state of a coral fill. */
+  --accent-coral-deep: #b85c4e;
+
+  /* Five-step quality ramp for booking scores. Replaces the raw
+   * green/lime/yellow/orange/red Tailwind ramp with the same ordering held
+   * inside the palette's warmer temperature. */
+  --score-5: var(--success);
+  --score-4: #6f9a52;
+  --score-3: #c9a227;
+  --score-2: #cf7f3f;
+  --score-1: var(--danger);
+}
+
+/* ---------------------------------------------------------------------------
+ * Dark theme. `@custom-variant dark` is declared at the top of this file but no
+ * dark values existed, so every dark: utility resolved to the light palette.
+ * Overriding the Soft Sage base variables here is enough: the shadcn layer, the
+ * neutral ramp and the status tokens are all defined in terms of these, so they
+ * follow automatically.
+ *
+ * Nothing sets `.dark` yet — there is no theme toggle — so this block is inert
+ * until one is added, and has not been verified in a browser.
+ * ------------------------------------------------------------------------- */
+.dark {
+  --bg-cream: #12201b;
+  --bg-card: #1a2e28;
+  --bg-subtle: #23382f;
+
+  --primary-navy: #9db4a0;
+  --primary-navy-deep: #b3c6b6;
+  --accent-sage: #7d9a84;
+  --accent-mint: #6f9384;
+
+  --text-primary: #e8efe9;
+  --text-secondary: #b8c9b9;
+  --text-muted: #8fa396;
+
+  --border-subtle: #2d4a3e;
+  --border-medium: #3d5a4a;
+  --border-strong: #4f6f5c;
+  --border-technical: #9db4a0;
+
+  --accent-coral: #c97f72;
+  --accent-coral-light: #d89a8f;
+  --accent-coral-deep: #a85f52;
+
+  --accent-gold: #d9a851;
+  --accent-gold-light: #e3bd76;
+  --accent-gold-soft: color-mix(in srgb, #d9a851 18%, transparent);
+
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.28);
+  --shadow-elevated: 0 4px 20px rgba(0, 0, 0, 0.5), 0 12px 40px rgba(0, 0, 0, 0.35);
+
+  /* The primary fill inverts: a sage fill on a dark page needs dark text. */
+  --primary-foreground: #12201b;
+  --accent: #2a4136;
+  --neutral-200: #2a4136;
+  --destructive: #d87566;
+
+  --success: #6aa886;
+  --success-text: #9ccfb2;
+  --success-surface: #1c3328;
+  --success-border: #2f5442;
+
+  --warning: #d9a851;
+  --warning-text: #e8c98a;
+  --warning-surface: #33290f;
+  --warning-border: #5a4a1d;
+
+  --danger-text: #e8a79c;
+  --danger-surface: #37211e;
+  --danger-border: #5c3732;
+
+  --score-4: #8fae6b;
+  --score-3: #d4b23f;
+  --score-2: #d99358;
+}
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -137,6 +262,36 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+
+  --color-neutral-50: var(--neutral-50);
+  --color-neutral-100: var(--neutral-100);
+  --color-neutral-200: var(--neutral-200);
+  --color-neutral-300: var(--neutral-300);
+  --color-neutral-400: var(--neutral-400);
+  --color-neutral-500: var(--neutral-500);
+  --color-neutral-600: var(--neutral-600);
+  --color-neutral-700: var(--neutral-700);
+  --color-neutral-800: var(--neutral-800);
+  --color-neutral-900: var(--neutral-900);
+  --color-neutral-950: var(--neutral-950);
+
+  --color-success: var(--success);
+  --color-success-text: var(--success-text);
+  --color-success-surface: var(--success-surface);
+  --color-success-border: var(--success-border);
+  --color-warning: var(--warning);
+  --color-warning-text: var(--warning-text);
+  --color-warning-surface: var(--warning-surface);
+  --color-warning-border: var(--warning-border);
+  --color-danger: var(--danger);
+  --color-danger-text: var(--danger-text);
+  --color-danger-surface: var(--danger-surface);
+  --color-danger-border: var(--danger-border);
+  --color-on-accent: var(--on-accent);
+
+  /* The only step below text-xs. Replaces the ad-hoc 0.65rem / 0.7rem /
+   * 0.53125rem sizes that were scattered through scoped styles. */
+  --text-2xs: 0.6875rem;
 }
 
 @layer base {
@@ -220,7 +375,7 @@ body {
 
 @media (min-width: 640px) {
   .fc-col-header-cell-cushion {
-    font-size: 0.65rem;
+    font-size: var(--text-2xs);
     padding: 8px 12px !important;
   }
 }
@@ -267,7 +422,7 @@ body {
   background: linear-gradient(135deg, var(--accent-sage) 0%, var(--accent-mint) 100%);
   color: white;
   padding: 4px 12px;
-  font-size: 0.65rem;
+  font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: 0.05em;
   border-radius: 8px;
@@ -292,7 +447,7 @@ body {
 @media (min-width: 640px) {
   .fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion::before {
     padding: 5px 14px;
-    font-size: 0.7rem;
+    font-size: var(--text-2xs);
   }
 }
 
@@ -540,7 +695,7 @@ body {
 .fc .fc-timegrid-axis-cushion,
 .fc .fc-timegrid-slot-label-cushion {
   color: var(--text-secondary);
-  font-size: 0.7rem;
+  font-size: var(--text-2xs);
   font-weight: 500;
   letter-spacing: 0.05em;
   padding: 0 8px;
@@ -551,7 +706,7 @@ body {
   .fc .fc-timegrid-axis-cushion,
   .fc .fc-timegrid-slot-label-cushion {
     padding: 0 12px;
-    font-size: 0.65rem;
+    font-size: var(--text-2xs);
   }
 }
 

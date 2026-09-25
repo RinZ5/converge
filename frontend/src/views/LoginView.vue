@@ -100,7 +100,7 @@
     align-items: center;
     justify-content: center;
     padding: 1.5rem;
-    background: #fafafa;
+    background: var(--bg-cream);
   }
 
   .login-card {
@@ -186,7 +186,7 @@
     margin: 0;
     font-family: Inter, sans-serif;
     font-size: 0.8125rem;
-    color: #b91c1c;
+    color: var(--danger-text);
   }
 
   .login-btn {
@@ -195,7 +195,7 @@
     font-size: 0.875rem;
     font-family: Inter, sans-serif;
     font-weight: 500;
-    color: #fff;
+    color: var(--on-accent);
     background: var(--primary-indigo);
     border: none;
     border-radius: 0.5rem;
@@ -222,7 +222,7 @@
 
   @media (max-width: 767px) {
     .login-page {
-      background: #ffffff;
+      background: var(--bg-card);
       padding: 1rem;
     }
 

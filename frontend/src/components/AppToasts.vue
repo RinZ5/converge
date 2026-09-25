@@ -2,7 +2,7 @@
   import { CheckCircle2, X, AlertCircle } from '@lucide/vue'
   import { useNotification } from '../composables/useNotification'
 
-  const { successMessage, errorMessage } = useNotification()
+  const { successMessage, errorMessage, dismissError } = useNotification()
 </script>
 
 <template>
@@ -18,7 +18,7 @@
         type="button"
         class="toast-dismiss"
         aria-label="Dismiss message"
-        @click="errorMessage = ''"
+        @click="dismissError"
       >
         <X class="toast-icon" aria-hidden="true" />
       </button>
@@ -57,7 +57,7 @@
     border-radius: 0.5rem;
     font-family: Inter, sans-serif;
     font-size: 0.875rem;
-    color: #fff;
+    color: var(--on-accent);
     box-shadow: var(--shadow-elevated);
     pointer-events: auto;
     animation: toast-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -94,7 +94,7 @@
   }
 
   .toast-dismiss:hover {
-    color: #fff;
+    color: var(--on-accent);
   }
 
   @media (max-width: 640px) {

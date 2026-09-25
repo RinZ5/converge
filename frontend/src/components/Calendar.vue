@@ -258,7 +258,13 @@
         v-if="selectedEventId && isMobile"
         type="button"
         class="fixed bottom-8 left-1/2 z-30 flex -translate-x-1/2 cursor-pointer items-center gap-2 rounded-2xl px-6 py-3.5 text-[0.9375rem] font-semibold text-white shadow-[0_6px_20px_rgba(232,165,152,0.4)] transition-all duration-200 [-webkit-tap-highlight-color:transparent] active:scale-[0.96]"
-        style="background: linear-gradient(135deg, #e8a598 0%, #f5c7bf 100%)"
+        style="
+          background: linear-gradient(
+            135deg,
+            var(--accent-coral) 0%,
+            var(--accent-coral-light) 100%
+          );
+        "
         @click="handleDeleteButtonClick($event, selectedEventId)"
       >
         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -311,13 +317,13 @@
       rgba(245, 199, 191, 0.72) 7px,
       rgba(245, 199, 191, 0.72) 14px
     ) !important;
-    border-top: 1px solid rgba(193, 104, 87, 0.9);
-    border-bottom: 1px solid rgba(193, 104, 87, 0.9);
+    border-top: 1px solid color-mix(in srgb, var(--danger) 90%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--danger) 90%, transparent);
   }
 
   :deep(.fc-event.commute-unavailable) {
     opacity: 1;
-    background: rgba(100, 116, 139, 0.12) !important;
+    background: color-mix(in srgb, var(--text-muted) 12%, transparent) !important;
     border: 0 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
@@ -342,7 +348,7 @@
     inset: 0;
     display: grid;
     place-items: center;
-    color: rgba(71, 85, 105, 0.8);
+    color: color-mix(in srgb, var(--text-secondary) 80%, transparent);
     font-size: 0.5625rem;
     font-weight: 600;
     letter-spacing: 0.08em;
@@ -435,7 +441,7 @@
   }
 
   :deep(.event-delete-btn:hover) {
-    background: #fff;
+    background: var(--bg-card);
     transform: scale(1.1);
   }
 

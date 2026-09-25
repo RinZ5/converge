@@ -87,7 +87,7 @@
         <p class="mb-6 text-sm text-(--text-secondary)">Add sessions to begin booking</p>
         <button
           type="button"
-          class="inline-flex cursor-pointer items-center gap-2 rounded-md bg-(--primary-indigo) px-6 py-3 text-sm font-medium text-white shadow-[0_2px_8px_rgba(62,76,122,0.2)] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:-translate-y-0.5 hover:bg-(--primary-indigo-deep)"
+          class="inline-flex cursor-pointer items-center gap-2 rounded-md bg-(--primary-indigo) px-6 py-3 text-sm font-medium text-white shadow-[0_2px_8px_rgba(45,74,62,0.2)] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:-translate-y-0.5 hover:bg-(--primary-indigo-deep)"
           @click="goBack"
         >
           Browse Sessions
@@ -112,7 +112,7 @@
           <button
             v-if="cartItems.length > 0"
             type="button"
-            class="cursor-pointer rounded-md border border-(--border-medium) bg-transparent px-4 py-2 font-[Inter,sans-serif] text-sm font-medium text-(--accent-coral) transition-all duration-200 hover:border-(--accent-coral) hover:bg-[rgba(201,109,93,0.08)]"
+            class="cursor-pointer rounded-md border border-(--border-medium) bg-transparent px-4 py-2 font-[Inter,sans-serif] text-sm font-medium text-(--accent-coral) transition-all duration-200 hover:border-(--accent-coral) hover:bg-(--accent-coral)/10"
             @click="handleClearAll"
           >
             Clear All
@@ -127,7 +127,7 @@
           >
             <button
               type="button"
-              class="absolute top-4 right-4 flex h-7 w-7 cursor-pointer items-center justify-center rounded bg-transparent text-(--text-muted) transition-all duration-200 hover:bg-[rgba(201,109,93,0.08)] hover:text-(--accent-coral)"
+              class="absolute top-4 right-4 flex h-7 w-7 cursor-pointer items-center justify-center rounded bg-transparent text-(--text-muted) transition-all duration-200 hover:bg-(--accent-coral)/10 hover:text-(--accent-coral)"
               aria-label="Remove session"
               @click="handleRemove(item.id)"
             >
@@ -176,7 +176,7 @@
           <button
             type="button"
             :disabled="isConfirming || cartItems.length === 0"
-            class="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-md border-none bg-(--accent-sage) px-5 py-3.5 font-[Inter,sans-serif] text-sm font-medium text-white shadow-[0_2px_8px_rgba(122,139,109,0.2)] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:enabled:-translate-y-0.5 hover:enabled:shadow-[0_4px_16px_rgba(122,139,109,0.3)] hover:enabled:brightness-90 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none max-sm:w-full"
+            class="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-md border-none bg-(--accent-sage) px-5 py-3.5 font-[Inter,sans-serif] text-sm font-medium text-white shadow-[0_2px_8px_rgba(157,180,160,0.2)] transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:enabled:-translate-y-0.5 hover:enabled:shadow-[0_4px_16px_rgba(157,180,160,0.3)] hover:enabled:brightness-90 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none max-sm:w-full"
             @click="handleSubmit"
           >
             <span v-if="!isConfirming">Confirm Booking</span>
@@ -200,7 +200,7 @@
       </div>
       <div
         v-if="showClearConfirm"
-        class="anim-overlay-in fixed inset-0 z-200 flex items-center justify-center bg-[rgba(26,28,35,0.5)]"
+        class="anim-overlay-in fixed inset-0 z-200 flex items-center justify-center bg-(--text-primary)/50"
         @click.self="showClearConfirm = false"
       >
         <div
@@ -228,7 +228,7 @@
             </button>
             <button
               type="button"
-              class="cursor-pointer rounded-md border-none bg-(--accent-coral) px-4 py-2.5 font-[Inter,sans-serif] text-sm font-medium text-white transition-all duration-200 hover:bg-[#b85c4e]"
+              class="cursor-pointer rounded-md border-none bg-(--accent-coral) px-4 py-2.5 font-[Inter,sans-serif] text-sm font-medium text-white transition-all duration-200 hover:bg-[var(--accent-coral-deep)]"
               @click="confirmClearAll"
             >
               Clear All

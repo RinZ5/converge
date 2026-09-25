@@ -233,7 +233,7 @@
     font-size: 0.875rem;
     font-family: Inter, sans-serif;
     font-weight: 500;
-    color: #fff;
+    color: var(--on-accent);
     background: var(--primary-indigo);
     border: none;
     border-radius: 0.5rem;

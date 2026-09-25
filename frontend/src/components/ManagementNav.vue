@@ -55,12 +55,12 @@
   }
 
   .manage-nav-tab--active {
-    color: #fff;
+    color: var(--on-accent);
     background: var(--primary-indigo);
   }
 
   .manage-nav-tab--active:hover {
-    color: #fff;
+    color: var(--on-accent);
     background: var(--primary-indigo);
   }
 
