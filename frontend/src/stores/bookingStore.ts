@@ -123,7 +123,7 @@ export const useBookingStore = defineStore('booking', () => {
       editable: false,
       backgroundColor: 'var(--accent-sage)',
       borderColor: 'var(--accent-sage)',
-      textColor: '#fff',
+      textColor: 'var(--on-accent)',
       classNames: ['cart-event'],
       extendedProps: {
         isCartItem: true,

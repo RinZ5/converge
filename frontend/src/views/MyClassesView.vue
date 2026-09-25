@@ -249,7 +249,7 @@
   }
 
   .classes-tab--active {
-    color: #fff;
+    color: var(--on-accent);
     background: var(--primary-indigo);
     border-color: var(--primary-indigo);
   }
@@ -276,8 +276,8 @@
 
   .classes-chip--active {
     color: var(--primary-indigo);
-    background: rgba(62, 76, 122, 0.1);
-    border-color: rgba(62, 76, 122, 0.3);
+    background: color-mix(in srgb, var(--primary-navy) 10%, transparent);
+    border-color: color-mix(in srgb, var(--primary-navy) 30%, transparent);
   }
 
   .classes-empty {
@@ -298,9 +298,9 @@
   }
 
   .classes-empty--error {
-    color: #b91c1c;
-    border-color: #fca5a5;
-    background: #fef2f2;
+    color: var(--danger-text);
+    border-color: var(--danger-border);
+    background: var(--danger-surface);
   }
 
   .classes-retry {
@@ -308,7 +308,7 @@
     font-family: Inter, sans-serif;
     font-size: 0.8125rem;
     font-weight: 500;
-    color: #fff;
+    color: var(--on-accent);
     background: var(--primary-indigo);
     border: none;
     border-radius: 8px;

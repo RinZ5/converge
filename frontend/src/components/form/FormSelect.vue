@@ -275,7 +275,7 @@
   .smart-suggestions-panel--desktop__select:focus {
     outline: none;
     border-color: var(--primary-indigo);
-    box-shadow: 0 0 0 3px rgba(62, 76, 122, 0.1);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-navy) 10%, transparent);
   }
 
   .smart-suggestions-panel--desktop__select:disabled {

@@ -552,7 +552,7 @@
   }
 
   .manage-btn--primary {
-    color: #fff;
+    color: var(--on-accent);
     background: var(--primary-indigo);
   }
 
@@ -586,7 +586,7 @@
     position: relative;
     width: 2.5rem;
     height: 1.375rem;
-    background: #d1d5db;
+    background: var(--neutral-400);
     border: none;
     border-radius: 9999px;
     cursor: pointer;
@@ -611,7 +611,7 @@
     left: 0.1875rem;
     width: 1rem;
     height: 1rem;
-    background: #fff;
+    background: var(--bg-card);
     border-radius: 50%;
     transition: transform 0.2s;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
@@ -622,8 +622,8 @@
   }
 
   .manage-badge--unlimited {
-    color: #166534;
-    background: #dcfce7;
+    color: var(--success-text);
+    background: var(--success-surface);
   }
 
   .manage-badge--capped {

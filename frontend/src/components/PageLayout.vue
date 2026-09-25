@@ -28,7 +28,7 @@
 <style scoped>
   .page-layout {
     min-height: 100vh;
-    background: #fafafa;
+    background: var(--bg-cream);
     display: flex;
     flex-direction: column;
   }
@@ -40,7 +40,7 @@
 
   @media (max-width: 767px) {
     .page-layout {
-      background: #ffffff;
+      background: var(--bg-card);
     }
   }
 </style>

@@ -82,8 +82,8 @@
     position: sticky;
     top: 0;
     z-index: 1000;
-    background: #ffffff;
-    border-bottom: 1px solid #e5e7eb;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border-subtle);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   }
 
@@ -113,9 +113,9 @@
     font-family: Inter, sans-serif;
     font-size: 0.8125rem;
     font-weight: 500;
-    color: #6b7280;
+    color: var(--text-muted);
     background: transparent;
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--border-subtle);
     border-radius: 8px;
     text-decoration: none;
     white-space: nowrap;
@@ -124,8 +124,8 @@
   }
 
   .navbar-back:hover {
-    color: #111827;
-    background: #f9fafb;
+    color: var(--text-primary);
+    background: var(--neutral-50);
   }
 
   .navbar-back-icon {
@@ -136,7 +136,7 @@
   .navbar-indicator {
     width: 4px;
     height: 1.25rem;
-    background: #3e4c7a;
+    background: var(--primary-navy);
     border-radius: 2px;
     flex-shrink: 0;
   }
@@ -144,7 +144,7 @@
   .navbar-title {
     font-size: 1.25rem;
     font-weight: 600;
-    color: #111827;
+    color: var(--text-primary);
     font-family:
       'Instrument Sans',
       'DM Sans',
@@ -168,7 +168,7 @@
     font-family: Inter, sans-serif;
     font-size: 0.8125rem;
     font-weight: 500;
-    color: #374151;
+    color: var(--text-secondary);
     white-space: nowrap;
   }
 
@@ -176,8 +176,8 @@
     padding: 0.125rem 0.4375rem;
     font-size: 0.6875rem;
     font-weight: 600;
-    color: #6b7280;
-    background: #f3f4f6;
+    color: var(--text-muted);
+    background: var(--bg-subtle);
     border-radius: 9999px;
     text-transform: capitalize;
   }
@@ -187,9 +187,9 @@
     font-family: Inter, sans-serif;
     font-size: 0.8125rem;
     font-weight: 500;
-    color: #6b7280;
+    color: var(--text-muted);
     background: transparent;
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--border-subtle);
     border-radius: 8px;
     cursor: pointer;
     text-decoration: none;
@@ -198,8 +198,8 @@
   }
 
   .navbar-logout:hover {
-    color: #111827;
-    background: #f9fafb;
+    color: var(--text-primary);
+    background: var(--neutral-50);
   }
 
   @media (max-width: 767px) {
@@ -223,8 +223,8 @@
     justify-content: center;
     width: 2.25rem;
     height: 2.25rem;
-    color: #6b7280;
-    background: #f3f4f6;
+    color: var(--text-muted);
+    background: var(--bg-subtle);
     border: 1px solid transparent;
     border-radius: 8px;
     cursor: pointer;
@@ -233,18 +233,18 @@
   }
 
   .navbar-cart:hover {
-    color: #3e4c7a;
-    background: #e5e7eb;
+    color: var(--primary-navy);
+    background: var(--neutral-300);
   }
 
   .navbar-cart--active {
-    color: #3e4c7a;
-    background: rgba(62, 76, 122, 0.1);
-    border-color: rgba(62, 76, 122, 0.2);
+    color: var(--primary-navy);
+    background: color-mix(in srgb, var(--primary-navy) 10%, transparent);
+    border-color: color-mix(in srgb, var(--primary-navy) 20%, transparent);
   }
 
   .navbar-cart--active:hover {
-    background: rgba(62, 76, 122, 0.15);
+    background: color-mix(in srgb, var(--primary-navy) 15%, transparent);
   }
 
   .navbar-cart-icon {
@@ -266,10 +266,10 @@
     font-size: 0.5625rem;
     font-weight: 600;
     font-family: 'JetBrains Mono', 'SF Mono', monospace;
-    color: #ffffff;
-    background: #ef4444;
+    color: var(--on-accent);
+    background: var(--danger);
     border-radius: 9999px;
-    border: 2px solid #ffffff;
+    border: 2px solid var(--bg-card);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   }
 
@@ -317,7 +317,7 @@
     .navbar-indicator {
       width: 2px;
       height: 1rem;
-      background: #111827;
+      background: var(--text-primary);
     }
 
     .navbar-title {
@@ -329,11 +329,11 @@
       height: 2rem;
       background: transparent;
       border-color: transparent;
-      color: #111827;
+      color: var(--text-primary);
     }
 
     .navbar-cart:hover {
-      background: #f3f4f6;
+      background: var(--bg-subtle);
     }
 
     .navbar-cart--active {
@@ -342,7 +342,7 @@
     }
 
     .navbar-cart--active:hover {
-      background: #f3f4f6;
+      background: var(--bg-subtle);
     }
 
     .navbar-cart-icon {

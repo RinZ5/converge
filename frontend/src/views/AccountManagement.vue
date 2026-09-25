@@ -410,7 +410,7 @@
   }
 
   .account-tab--active {
-    color: #fff;
+    color: var(--on-accent);
     background: var(--primary-indigo);
     border-color: var(--primary-indigo);
   }
@@ -520,7 +520,7 @@
   }
 
   .manage-btn--primary {
-    color: #fff;
+    color: var(--on-accent);
     background: var(--primary-indigo);
   }
 
@@ -539,15 +539,15 @@
   }
 
   .manage-btn--danger {
-    color: #b91c1c;
+    color: var(--danger-text);
     background: transparent;
-    border: 1px solid #fecaca;
+    border: 1px solid var(--danger-border);
     padding: 0.375rem 0.875rem;
     font-size: 0.8125rem;
   }
 
   .manage-btn--danger:hover:not(:disabled) {
-    background: #fef2f2;
+    background: var(--danger-surface);
   }
 
   .manage-btn:disabled {
@@ -632,7 +632,7 @@
     align-items: center;
     justify-content: center;
     padding: 1.5rem;
-    background: rgba(15, 23, 42, 0.4);
+    background: color-mix(in srgb, var(--text-primary) 40%, transparent);
   }
 
   .account-modal {
@@ -690,7 +690,7 @@
     margin: 0;
     font-family: Inter, sans-serif;
     font-size: 0.8125rem;
-    color: #b91c1c;
+    color: var(--danger-text);
   }
 
   .account-modal-actions {
