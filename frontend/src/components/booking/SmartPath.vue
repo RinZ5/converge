@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { ref, computed } from 'vue'
+  import { ref, computed, nextTick, watch } from 'vue'
   import { Loader2, Plus, Sparkles, X } from '@lucide/vue'
   import { useBooking } from '../../composables/useBooking'
   import { useBookingContext } from '../../composables/useBookingContext'
@@ -31,6 +31,7 @@
     suggestions,
     showDetailedResults,
     isEvaluating,
+    resetBookingState,
   } = useBooking()
 
   const { contextBlocker, contextComplete } = useBookingContext()
@@ -86,10 +87,26 @@
 
   const canSubmit = computed(() => submitBlocker.value === null && !isEvaluating.value)
 
-  const handleSubmit = () => {
+  const resultsRef = ref<HTMLElement | null>(null)
+
+  const handleSubmit = async () => {
     if (!canSubmit.value) return
-    getSuggestions(timeSlots.value)
+    const found = await getSuggestions(timeSlots.value)
+    // The results append below the form and can land off-screen on a short
+    // viewport; bring them into view rather than leaving the click unanswered.
+    if (found) {
+      await nextTick()
+      resultsRef.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }
   }
+
+  // Results answer the criteria that produced them. Editing a time window or the
+  // gender used to leave the old answer on screen beside the new question --
+  // invalidateRequest only cleared the in-flight flag, never the results.
+  // Changing the teacher already clears them through the booking store.
+  watch([timeSlots, requiredGender], () => {
+    if (showDetailedResults.value || suggestions.value) resetBookingState()
+  })
 
   const handleConfirmBooking = (
     teacherId: number,
@@ -109,139 +126,149 @@
 </script>
 
 <template>
-  <Card>
-    <CardContent class="flex flex-col gap-5 py-4">
-      <div class="grid gap-4 sm:grid-cols-2">
-        <div class="flex flex-col gap-2">
-          <Label for="v3-smart-gender">Gender preference</Label>
-          <Select v-model="genderValue" :disabled="!contextComplete">
-            <SelectTrigger id="v3-smart-gender" class="w-full">
-              <SelectValue placeholder="Select a preference" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="male">Male</SelectItem>
-              <SelectItem value="female">Female</SelectItem>
-              <SelectItem value="lgbtq+">LGBTQ+</SelectItem>
-            </SelectContent>
-          </Select>
-          <p class="text-muted-foreground text-xs">Required by the matching engine.</p>
-        </div>
+  <!-- Form on the left, results on the right: the criteria stay in view while
+       the answer is read, instead of the answer appending below the fold. The
+       columns stack on narrow screens, keeping the original top-to-bottom flow. -->
+  <div class="grid items-start gap-4 lg:grid-cols-[24rem_1fr] xl:grid-cols-[28rem_1fr]">
+    <Card>
+      <CardContent class="flex flex-col gap-5 py-4">
+        <div class="flex flex-col gap-4">
+          <div class="flex flex-col gap-2">
+            <Label for="v3-smart-gender">Gender preference</Label>
+            <Select v-model="genderValue" :disabled="!contextComplete">
+              <SelectTrigger id="v3-smart-gender" class="w-full">
+                <SelectValue placeholder="Select a preference" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="male">Male</SelectItem>
+                <SelectItem value="female">Female</SelectItem>
+                <SelectItem value="lgbtq+">LGBTQ+</SelectItem>
+              </SelectContent>
+            </Select>
+            <p class="text-muted-foreground text-xs">Required by the matching engine.</p>
+          </div>
 
-        <div class="flex flex-col gap-2">
-          <Label for="v3-smart-teacher">
-            Preferred teacher
-            <span class="text-muted-foreground font-normal">(optional)</span>
-          </Label>
-          <Select v-model="teacherValue" :disabled="!contextComplete">
-            <SelectTrigger id="v3-smart-teacher" class="w-full">
-              <SelectValue placeholder="Any teacher" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem :value="NONE">Any teacher</SelectItem>
-              <SelectItem
-                v-for="teacher in genderFilteredTeachers"
-                :key="teacher.id"
-                :value="String(teacher.id)"
-              >
-                {{ teacher.name }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <Separator />
-
-      <div class="flex flex-col gap-3">
-        <Label>Preferred time windows</Label>
-        <div class="flex flex-wrap items-center gap-2">
-          <Select v-model="draftDay" :disabled="!contextComplete">
-            <SelectTrigger class="w-36" aria-label="Day of week">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem v-for="(name, index) in DAY_NAMES" :key="name" :value="String(index)">
-                {{ name }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select v-model="draftStart" :disabled="!contextComplete">
-            <SelectTrigger class="w-28" aria-label="Start time">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem v-for="time in TIME_OPTIONS" :key="`s-${time}`" :value="time">
-                {{ time }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-
-          <span class="text-muted-foreground text-sm">to</span>
-
-          <Select v-model="draftEnd" :disabled="!contextComplete">
-            <SelectTrigger class="w-28" aria-label="End time">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem v-for="time in TIME_OPTIONS" :key="`e-${time}`" :value="time">
-                {{ time }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Button
-            variant="outline"
-            size="icon"
-            :disabled="!contextComplete"
-            aria-label="Add time window"
-            @click="addTimeSlot"
-          >
-            <Plus class="size-4" />
-          </Button>
-        </div>
-
-        <p v-if="draftError" class="text-destructive text-xs" role="alert">{{ draftError }}</p>
-
-        <div v-if="timeSlots.length" class="flex flex-col gap-1.5">
-          <div
-            v-for="(slot, index) in timeSlots"
-            :key="`${slot.day_of_week}-${slot.start}-${slot.end}-${index}`"
-            class="border-border flex items-center justify-between rounded-md border px-3 py-1.5 text-sm"
-          >
-            <span>{{ DAY_NAMES[slot.day_of_week] }} {{ slot.start }} – {{ slot.end }}</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              :aria-label="`Remove ${DAY_NAMES[slot.day_of_week]} ${slot.start} to ${slot.end}`"
-              @click="removeTimeSlot(index)"
-            >
-              <X class="size-4" />
-            </Button>
+          <div class="flex flex-col gap-2">
+            <Label for="v3-smart-teacher">
+              Preferred teacher
+              <span class="text-muted-foreground font-normal">(optional)</span>
+            </Label>
+            <Select v-model="teacherValue" :disabled="!contextComplete">
+              <SelectTrigger id="v3-smart-teacher" class="w-full">
+                <SelectValue placeholder="Any teacher" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem :value="NONE">Any teacher</SelectItem>
+                <SelectItem
+                  v-for="teacher in genderFilteredTeachers"
+                  :key="teacher.id"
+                  :value="String(teacher.id)"
+                >
+                  {{ teacher.name }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
-      </div>
 
-      <div class="flex items-center justify-between gap-3">
-        <p v-if="submitBlocker" class="text-muted-foreground text-sm">{{ submitBlocker }}</p>
-        <span v-else></span>
-        <Button :disabled="!canSubmit" @click="handleSubmit">
-          <Loader2 v-if="isEvaluating" class="size-4 animate-spin" />
-          <Sparkles v-else class="size-4" />
-          Find teachers
-        </Button>
-      </div>
-      <template v-if="showDetailedResults || isEvaluating">
         <Separator />
-        <BookingResults
-          :suggestions="suggestions"
-          :show-detailed-results="showDetailedResults"
-          :is-evaluating="isEvaluating"
-          :cart-items="cartItems"
-          @confirm-booking="handleConfirmBooking"
-          @reset="showDetailedResults = false"
-        />
-      </template>
-    </CardContent>
-  </Card>
+
+        <div class="flex flex-col gap-3">
+          <Label>Preferred time windows</Label>
+          <div class="flex flex-col gap-2">
+            <Select v-model="draftDay" :disabled="!contextComplete">
+              <SelectTrigger class="w-full" aria-label="Day of week">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="(name, index) in DAY_NAMES" :key="name" :value="String(index)">
+                  {{ name }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+
+            <div class="flex flex-wrap items-center gap-2">
+              <Select v-model="draftStart" :disabled="!contextComplete">
+                <SelectTrigger class="w-28" aria-label="Start time">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="time in TIME_OPTIONS" :key="`s-${time}`" :value="time">
+                    {{ time }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+
+              <span class="text-muted-foreground text-sm">to</span>
+
+              <Select v-model="draftEnd" :disabled="!contextComplete">
+                <SelectTrigger class="w-28" aria-label="End time">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="time in TIME_OPTIONS" :key="`e-${time}`" :value="time">
+                    {{ time }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Button
+                variant="outline"
+                size="icon"
+                :disabled="!contextComplete"
+                aria-label="Add time window"
+                @click="addTimeSlot"
+              >
+                <Plus class="size-4" />
+              </Button>
+            </div>
+          </div>
+
+          <p v-if="draftError" class="text-destructive text-xs" role="alert">{{ draftError }}</p>
+
+          <div v-if="timeSlots.length" class="flex flex-col gap-1.5">
+            <div
+              v-for="(slot, index) in timeSlots"
+              :key="`${slot.day_of_week}-${slot.start}-${slot.end}-${index}`"
+              class="border-border flex items-center justify-between rounded-md border px-3 py-1.5 text-sm"
+            >
+              <span>{{ DAY_NAMES[slot.day_of_week] }} {{ slot.start }} – {{ slot.end }}</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                :aria-label="`Remove ${DAY_NAMES[slot.day_of_week]} ${slot.start} to ${slot.end}`"
+                @click="removeTimeSlot(index)"
+              >
+                <X class="size-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between gap-3">
+          <p v-if="submitBlocker" class="text-muted-foreground text-sm">{{ submitBlocker }}</p>
+          <span v-else></span>
+          <Button :disabled="!canSubmit" @click="handleSubmit">
+            <Loader2 v-if="isEvaluating" class="size-4 animate-spin" />
+            <Sparkles v-else class="size-4" />
+            Find teachers
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+
+    <div ref="resultsRef">
+      <Card>
+        <CardContent class="py-4">
+          <BookingResults
+            :suggestions="suggestions"
+            :show-detailed-results="showDetailedResults"
+            :is-evaluating="isEvaluating"
+            :cart-items="cartItems"
+            @confirm-booking="handleConfirmBooking"
+          />
+        </CardContent>
+      </Card>
+    </div>
+  </div>
 </template>
