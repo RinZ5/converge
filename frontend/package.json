@@ -17,7 +17,8 @@
     "check:notify": "node --experimental-strip-types scripts/check-notification-timeout.ts",
     "check:contrast": "node --experimental-strip-types scripts/check-contrast.ts",
     "check:score": "node --experimental-strip-types scripts/check-score-color.ts",
-    "check:color": "node --experimental-strip-types scripts/check-subject-color.ts"
+    "check:color": "node --experimental-strip-types scripts/check-subject-color.ts",
+    "check:calendar": "node --experimental-strip-types scripts/check-calendar-options.ts"
   },
   "dependencies": {
     "@fontsource/inter": "^5.3.0",

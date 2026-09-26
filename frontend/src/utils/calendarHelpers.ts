@@ -27,6 +27,11 @@ export function createEvent(start: Date, end: Date): EventInput {
     start,
     end,
     title: '',
+    // Set here rather than left to the theme default: an event with no colour
+    // falls back to --fc-classic-event, which is a solid fill meant to carry
+    // white text. Every other block on this grid is a tint with an edge.
+    color: 'var(--draft-fill)',
+    contrastColor: 'var(--text-primary)',
     className: 'draft-event',
   }
 }

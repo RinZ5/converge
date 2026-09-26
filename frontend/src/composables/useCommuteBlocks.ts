@@ -57,6 +57,14 @@ export function useCommuteBlocks() {
       start: new Date(span.start).toISOString(),
       end: new Date(span.end).toISOString(),
       editable: false,
+      // A background event: it is ambient "you cannot book here" context, never
+      // clickable, so it should not take a lane away from the blocks that are.
+      // The hatching in .commute-unavailable is what carries the meaning; the
+      // theme renders a background event's own fill at 15% opacity underneath.
+      //
+      // overlapsBlockingEvent keys off extendedProps.isCommute, not off how the
+      // event is displayed, so this still blocks selection.
+      display: 'background',
       color: 'var(--accent-coral)',
       className: 'commute-unavailable',
       extendedProps: { isCommute: true },
