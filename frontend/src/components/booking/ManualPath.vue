@@ -233,11 +233,15 @@
                44rem gave each hour ~60px, more than a one-line block needs. 36rem
                puts an hour at ~48px and the smallest bookable slot at ~24px, still
                room for its label. -->
-          <div class="border-border h-[30rem] overflow-hidden rounded-lg border lg:h-[36rem]">
+          <!-- No border or radius here: Calendar paints its own card surface, so
+               this box only sets the height. It used to add a second border at a
+               different radius around the one the calendar already draws. -->
+          <div class="h-[30rem] lg:h-[36rem]">
             <Calendar
               :model-value="calendarEvents"
               :additional-events="additionalEvents"
               :editable="calendarState === 'editable'"
+              :paint-business-hours="calendarState === 'editable'"
               :show-header="false"
               :business-hours="businessHours"
               constraint="businessHours"
@@ -248,7 +252,7 @@
           </div>
           <div
             v-if="pendingTeachers"
-            class="bg-background/80 absolute inset-0 z-20 flex items-center justify-center rounded-lg p-4"
+            class="bg-background/80 absolute inset-0 z-20 flex items-center justify-center rounded-2xl p-4"
           >
             <Card class="w-full max-w-xs">
               <CardContent class="flex flex-col gap-2 py-4">
