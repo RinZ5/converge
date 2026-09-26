@@ -117,6 +117,20 @@
   --draft-fill: #d3e0ea;
   --draft-edge: #4d647a;
 
+  /* The "nobody is free here" wash on the booking grid. It used to ride on
+   * --fc-classic-faint, the theme's 4% overlay, which lands at 1.07:1 against
+   * the white card -- close enough to invisible that the band did not read as
+   * a state at all, which is the whole complaint.
+   *
+   * 12% instead: 1.25:1, roughly three times the step off the card. It stays a
+   * wash rather than a fill on purpose -- every event tint on this grid is
+   * lighter than a 12% neutral, so the blocks keep sitting in front of it.
+   * Note this is deliberately below the 3:1 of 1.4.11: at 3:1 the band is
+   * mid-grey and the pastel treatment is gone. The state is not carried by the
+   * shading alone -- the free hours hold the teacher blocks that name who is
+   * available -- so the band is reinforcement, not the sole signal. */
+  --calendar-off-hours: color-mix(in srgb, var(--text-primary) 12%, transparent);
+
   /* Roster subject dots. Same two steps, same way round: --subject-N is the
    * ring that makes the dot visible, --subject-N-soft is the pastel inside.
    *
@@ -219,7 +233,16 @@
 
   --border: var(--border-subtle);
   --input: var(--border-subtle);
-  --ring: var(--accent-amber-strong);
+  /* Focus is a state, not a severity. This was --accent-amber-strong (#a87d0e),
+   * which is a hair from --warning (#b0651c): a control read as flagged the
+   * moment it was focused, and now that an invalid select turns its border
+   * --destructive, amber sat between plain and error and looked like a step on
+   * that scale. The primary reads as "this is the app", not "something is up",
+   * and it is far easier to see: 9.72:1 on the card against amber's 3.75:1.
+   *
+   * No .dark entry needed -- --primary-navy is itself redefined there, so the
+   * ring follows. */
+  --ring: var(--primary-navy);
 
   --chart-1: var(--primary-navy);
   --chart-2: var(--accent-sage);
@@ -314,6 +337,12 @@
 
   --draft-fill: #31464d;
   --draft-edge: #b6ccdc;
+
+  /* 9%, not 12%: a light overlay on a dark card gains contrast faster than a
+   * dark one on white. 12% here would be 1.41:1 against the card while the
+   * light theme sits at 1.25:1; 9% lands at 1.29:1, so the band reads as the
+   * same weight in both themes. */
+  --calendar-off-hours: color-mix(in srgb, var(--text-primary) 9%, transparent);
 
   --cat-1-tint: #324c41;
   --cat-2-tint: #3a4a35;
@@ -493,7 +522,16 @@ body {
 
   --fc-classic-ring-color: var(--ring);
   --fc-classic-now: var(--danger);
-  --fc-classic-today: color-mix(in srgb, var(--accent-amber) 7%, transparent);
+  /* No tint on today's column. It is the one classic-theme fill that paints a
+   * whole column of the grid, so it read as a state the column was in -- next
+   * to the shaded "nobody is free" hours and the amber cart blocks, an amber
+   * column is a third thing competing for the same meaning. The date is still
+   * in the header and nowIndicator still draws the current-time line, both of
+   * which say "today" without claiming anything about the hours.
+   *
+   * transparent rather than deleting the line: the theme's own default would
+   * come back, and this is the only place recording that the blank is meant. */
+  --fc-classic-today: transparent;
   --fc-classic-highlight: color-mix(in srgb, var(--accent-sage) 20%, transparent);
   --fc-classic-background-event: var(--accent-coral);
 }
@@ -556,6 +594,15 @@ body {
 
 .cart-event {
   border-color: var(--accent-amber-strong);
+}
+
+/* Passed as nonBusinessHoursClass, which replaces the theme's own class for
+ * those cells. Worth the extra option rather than simply raising
+ * --fc-classic-faint: that variable also paints button hover and focus-visible
+ * in the theme, so moving it would have made every hover in the calendar
+ * heavier to fix one band. */
+.calendar-off-hours {
+  background-color: var(--calendar-off-hours);
 }
 
 /* A slot being drawn. The class was already on the event but had no rule, so

@@ -26,10 +26,18 @@
     businessHours?: BusinessHoursInput
     constraint?: string
     modelValue?: EventInput[]
-    /** Paint the business-hours band. Off by default: the band is drawn across
-     *  the full column width, so it only tells the truth when the hours belong
-     *  to one person, or when nothing else on the grid shows availability. */
-    paintBusinessHours?: boolean
+    /** What the empty grid looks like underneath the events.
+     *
+     *  - `none`   nothing is shaded; every hour is the card surface.
+     *  - `hours`  the hours `businessHours` does NOT cover are shaded. What an
+     *             unshaded hour means depends on whose hours were passed in:
+     *             one teacher's, and it reads per-teacher; the union of
+     *             several, and it only says somebody is free.
+     *  - `full`   the whole grid is shaded, so nothing but the events reads as
+     *             available. For the union case, where the shading can be
+     *             trusted (nobody is free) but the gaps cannot (somebody is,
+     *             and the blocks already say who). */
+    backdrop?: 'none' | 'hours' | 'full'
     additionalEvents?: EventInput[]
 
     showHeader?: boolean
@@ -40,7 +48,7 @@
     businessHours: undefined,
     constraint: undefined,
     modelValue: () => [],
-    paintBusinessHours: false,
+    backdrop: 'none',
     additionalEvents: () => [],
     showHeader: true,
   })
@@ -55,6 +63,18 @@
   // fresh [] on every recompute would make the options object differ on every
   // render, which is exactly the churn the computed exists to avoid.
   const NO_BUSINESS_HOURS: BusinessHoursInput = []
+
+  // One minute at midnight, every day: nothing inside the 08:00-19:00 window
+  // this calendar shows.
+  //
+  // FullCalendar paints the *inverse* of the business ranges, and it derives
+  // that inverse by walking the parsed business-hours instances -- so an empty
+  // set yields no instances, nothing to invert, and nothing painted. "Shade
+  // everything" therefore cannot be said as "there are no business hours"; it
+  // has to be said as "the business hours are somewhere you cannot see".
+  const BUSINESS_HOURS_OFFSCREEN: BusinessHoursInput = [
+    { daysOfWeek: [0, 1, 2, 3, 4, 5, 6], startTime: '00:00', endTime: '00:01' },
+  ]
 
   const calendarRef = ref<InstanceType<typeof FullCalendar> | null>(null)
 
@@ -181,6 +201,10 @@
     // instead and none of them is hidden.
     eventOverlap: false,
     slotEventOverlap: false,
+    // Our class, not the theme's, for the hours nobody is free. See
+    // .calendar-off-hours in style.css for why it is not just a heavier
+    // --fc-classic-faint.
+    nonBusinessHoursClass: 'calendar-off-hours',
   } as const
 
   const calendarOptions = computed(() => ({
@@ -195,24 +219,26 @@
     displayEventTime: false,
     eventDidMount: handleEventDidMount,
     eventWillUnmount: handleEventWillUnmount,
-    // Whether to paint is the caller's call, not something inferred here. It
+    // What gets shaded is the caller's call, not something inferred here. It
     // was tied to `editable`, which is right for the booking calendar and wrong
     // for the guest page: there the band is the only thing showing availability
     // at all, so keying off `editable` blanked the page.
     //
-    // The prop is still read regardless: useBusinessHoursHeaders and
-    // isWithinConstraint use it directly, whatever gets painted.
+    // The businessHours prop is still read regardless of the backdrop:
+    // useBusinessHoursHeaders and isWithinConstraint use it directly, whatever
+    // ends up painted.
     //
     // An empty array, not `undefined` and not `false`. undefined reads as
     // "option not given" and the calendar keeps whatever was set last, which
     // left the previous teacher's band painted after going back to All
     // teachers. `false` is a different shape from the value this option
-    // normally carries; an empty array is the same shape and means the same
-    // thing -- no business ranges, so FullCalendar shades the whole day as
-    // non-business.
-    businessHours: props.paintBusinessHours
-      ? (props.businessHours ?? NO_BUSINESS_HOURS)
-      : NO_BUSINESS_HOURS,
+    // normally carries; an empty array is the same shape and paints nothing.
+    businessHours:
+      props.backdrop === 'full'
+        ? BUSINESS_HOURS_OFFSCREEN
+        : props.backdrop === 'hours'
+          ? (props.businessHours ?? NO_BUSINESS_HOURS)
+          : NO_BUSINESS_HOURS,
     eventConstraint: props.constraint,
     selectConstraint: props.constraint,
     selectAllow: handleSelectAllow,
@@ -295,8 +321,15 @@
             <span class="truncate text-xs font-medium">{{ arg.event.title || 'Booked' }}</span>
           </div>
 
-          <div v-else class="group relative h-full max-w-full">
-            <span class="block max-w-full truncate">
+          <!-- Centred and sized like the booked blocks. The span carried no
+               size class at all, so it inherited the theme root's 16px -- the
+               one label on the grid rendered at body-copy size, against 12px
+               on Booked and 11px on the browse blocks. The select mirror is
+               rendered through the same event pipeline (it is the same render
+               props with isMirror set), so the block drawn under the cursor
+               while dragging should pick this up too. -->
+          <div v-else class="group relative flex h-full max-w-full items-center justify-center">
+            <span class="max-w-full truncate text-xs font-medium">
               {{
                 arg.event.start && arg.event.end
                   ? formatTimeRange(arg.event.start, arg.event.end)

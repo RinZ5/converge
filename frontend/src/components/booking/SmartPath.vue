@@ -3,9 +3,11 @@
   import { Loader2, Plus, Sparkles, X } from '@lucide/vue'
   import { useBooking } from '../../composables/useBooking'
   import { useBookingContext } from '../../composables/useBookingContext'
+  import { useGenderFilterWarning } from '../../composables/useGenderFilterWarning'
   import { useAISuggestions } from '../../composables/useAISuggestions'
   import { useCart } from '../../composables/useCart'
   import { useNumberSelect, useEnumSelect, NONE } from '../../composables/useSelectProxy'
+  import { genderLabel } from '../../utils/gender'
   import { weeklySlotSchema } from '../../schemas/calendar'
   import { toMinutes } from '../../utils/dateValidation'
   import BookingResults from '../BookingResults.vue'
@@ -24,6 +26,7 @@
 
   const {
     genderFilteredTeachers,
+    isLoadingTeachers,
     selectedSubjectId,
     selectedBranchId,
     selectedTeacherId,
@@ -35,6 +38,7 @@
   } = useBooking()
 
   const { contextBlocker, contextComplete } = useBookingContext()
+  const { isEmptyFromGenderFilter } = useGenderFilterWarning({ notify: true })
   const { getSuggestions } = useAISuggestions()
   const { cartItems, addSlotToCart } = useCart()
 
@@ -77,7 +81,15 @@
 
   const submitBlocker = computed<string | null>(() => {
     if (!contextComplete.value) return contextBlocker.value
-    if (requiredGender.value === null) return 'Choose a gender preference.'
+    const gender = requiredGender.value
+    if (gender === null) return 'Choose a gender preference.'
+    // Before the time windows, not after: with no teacher to match against, the
+    // engine can only come back empty, and it would come back empty without
+    // saying which of the criteria was the impossible one. This is knowable
+    // here -- the teacher list is already loaded on the client.
+    if (!isLoadingTeachers.value && genderFilteredTeachers.value.length === 0) {
+      return `No ${genderLabel(gender)} teacher teaches this subject — try a different preference.`
+    }
     if (timeSlots.value.length === 0) return 'Add at least one preferred time window.'
 
     const durations = new Set(timeSlots.value.map((s) => toMinutes(s.end) - toMinutes(s.start)))
@@ -136,7 +148,13 @@
           <div class="flex flex-col gap-2">
             <Label for="v3-smart-gender">Gender preference</Label>
             <Select v-model="genderValue" :disabled="!contextComplete">
-              <SelectTrigger id="v3-smart-gender" class="w-full">
+              <!-- See ManualPath: the invalid state is the trigger's own, so
+                   the border and the announcement come from one attribute. -->
+              <SelectTrigger
+                id="v3-smart-gender"
+                class="w-full"
+                :aria-invalid="isEmptyFromGenderFilter"
+              >
                 <SelectValue placeholder="Select a preference" />
               </SelectTrigger>
               <SelectContent>
