@@ -5,7 +5,7 @@ import { useCartStore } from '../stores/cartStore'
 import { useCommute } from './useCommute'
 import { subtractSpans, type Span } from '../utils/intervals'
 import { commuteSpansForBranch, type CommuteEngagement } from '../utils/commuteAvailability'
-import type { EventInput } from '@fullcalendar/core'
+import type { EventInput } from '@fullcalendar/vue3'
 
 export function useCommuteBlocks() {
   const store = useBookingStore()
@@ -57,7 +57,8 @@ export function useCommuteBlocks() {
       start: new Date(span.start).toISOString(),
       end: new Date(span.end).toISOString(),
       editable: false,
-      classNames: ['commute-unavailable'],
+      color: 'var(--accent-coral)',
+      className: 'commute-unavailable',
       extendedProps: { isCommute: true },
     }))
   )

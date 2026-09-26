@@ -1,4 +1,4 @@
-import type { Teacher } from '../types'
+import type { Subject, Teacher } from '../types'
 import { API_ENDPOINTS } from '../config/endpoints'
 import { fetchApi, fetchList, postApi, createApiGetAll } from '../utils/api'
 export const teacherApi = {
@@ -14,6 +14,14 @@ export const teacherApi = {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
+    }),
+  getSubjects: (id: number) => fetchList<Subject>(`${API_ENDPOINTS.TEACHERS}/${id}/subjects`),
+  // A full replace, matching the API: the list sent is the teacher's whole set.
+  setSubjects: (id: number, subjectIds: number[]) =>
+    fetchApi<{ message: string }>(`${API_ENDPOINTS.TEACHERS}/${id}/subjects`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subject_ids: subjectIds }),
     }),
   setGender: (id: number, gender: string) =>
     fetchApi<{ message: string }>(`${API_ENDPOINTS.TEACHERS}/${id}/gender`, {

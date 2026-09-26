@@ -26,6 +26,10 @@ type CreateTeacherRequest struct {
 	Gender string `json:"gender" binding:"required" example:"female"`
 }
 
+type UpdateSubjectsRequest struct {
+	SubjectIDs []int `json:"subject_ids" example:"1,2"`
+}
+
 type UpdateStatusRequest struct {
 	Status string `json:"status" binding:"required" example:"deactivated"`
 }

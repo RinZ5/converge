@@ -25,7 +25,7 @@
     SelectTrigger,
     SelectValue,
   } from '@/components/ui/select'
-  import type { EventClickArg } from '@fullcalendar/core'
+  import type { EventClickInfo } from '@fullcalendar/vue3'
 
   const {
     events,
@@ -97,7 +97,7 @@
     showSuccess(`Now booking with ${teacher.name} — drag the calendar to select times`, 4000)
   }
 
-  const handleEventClick = (info: EventClickArg) => {
+  const handleEventClick = (info: EventClickInfo) => {
     const props = info.event.extendedProps
     if (!props?.isBrowse) return
 

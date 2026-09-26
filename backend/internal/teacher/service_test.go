@@ -51,6 +51,16 @@ func (m *mockStore) GetTeachersBySubject(ctx context.Context, subjectID int) ([]
 	return args.Get(0).([]Teacher), args.Error(1)
 }
 
+func (m *mockStore) SubjectsForTeacher(ctx context.Context, teacherID int) ([]shared.Subject, error) {
+	args := m.Called(ctx, teacherID)
+	return args.Get(0).([]shared.Subject), args.Error(1)
+}
+
+func (m *mockStore) ReplaceTeacherSubjects(ctx context.Context, teacherID int, subjectIDs []int) error {
+	args := m.Called(ctx, teacherID, subjectIDs)
+	return args.Error(0)
+}
+
 func (m *mockStore) GetAllAvailability(ctx context.Context) ([]TeacherAvailability, error) {
 	args := m.Called(ctx)
 	return args.Get(0).([]TeacherAvailability), args.Error(1)
@@ -371,4 +381,47 @@ func TestTeacherService_SetGender_StoreError_Propagates(t *testing.T) {
 
 	var notFoundErr *shared.NotFoundError
 	assert.ErrorAs(t, err, &notFoundErr)
+}
+
+func TestSetTeacherSubjects(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("deduplicates before writing", func(t *testing.T) {
+		store := new(mockStore)
+		// The admin submits a checklist; a repeated id is the same request, and
+		// the join table would reject the second row anyway.
+		store.On("ReplaceTeacherSubjects", ctx, 1, []int{3, 5}).Return(nil)
+		svc := NewService(store, store, store, slog.Default())
+
+		require.NoError(t, svc.SetTeacherSubjects(ctx, 1, []int{3, 5, 3, 5}))
+		store.AssertExpectations(t)
+	})
+
+	t.Run("an empty list clears the teacher's subjects", func(t *testing.T) {
+		store := new(mockStore)
+		store.On("ReplaceTeacherSubjects", ctx, 1, []int{}).Return(nil)
+		svc := NewService(store, store, store, slog.Default())
+
+		require.NoError(t, svc.SetTeacherSubjects(ctx, 1, nil))
+		store.AssertExpectations(t)
+	})
+
+	t.Run("rejects a non-positive subject id without touching the store", func(t *testing.T) {
+		store := new(mockStore)
+		svc := NewService(store, store, store, slog.Default())
+
+		err := svc.SetTeacherSubjects(ctx, 1, []int{3, 0})
+		require.Error(t, err)
+		var valErr *ValidationError
+		require.ErrorAs(t, err, &valErr)
+		store.AssertNotCalled(t, "ReplaceTeacherSubjects", mock.Anything, mock.Anything, mock.Anything)
+	})
+
+	t.Run("rejects a non-positive teacher id", func(t *testing.T) {
+		store := new(mockStore)
+		svc := NewService(store, store, store, slog.Default())
+
+		require.Error(t, svc.SetTeacherSubjects(ctx, 0, []int{1}))
+		store.AssertNotCalled(t, "ReplaceTeacherSubjects", mock.Anything, mock.Anything, mock.Anything)
+	})
 }

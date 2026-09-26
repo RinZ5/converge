@@ -103,6 +103,65 @@ func (p *PostgresRepo) GetTeachersBySubject(ctx context.Context, subjectID int) 
 	return teachers, rows.Err()
 }
 
+func (p *PostgresRepo) SubjectsForTeacher(ctx context.Context, teacherID int) ([]shared.Subject, error) {
+	rows, err := p.DB.QueryContext(ctx, `
+		SELECT s.id, s.name
+		FROM subjects s
+		JOIN teacher_subjects ts ON ts.subject_id = s.id
+		WHERE ts.teacher_id = $1
+		ORDER BY s.name`, teacherID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	subjects := []shared.Subject{}
+	for rows.Next() {
+		var s shared.Subject
+		if err := rows.Scan(&s.ID, &s.Name); err != nil {
+			return nil, err
+		}
+		subjects = append(subjects, s)
+	}
+	return subjects, rows.Err()
+}
+
+// ReplaceTeacherSubjects swaps the whole set in one transaction, mirroring
+// ReplaceWeeklyAvailability. The insert names the subjects table so an id that
+// does not exist is dropped rather than raising a foreign key error on a list
+// the admin cannot see the ids of.
+func (p *PostgresRepo) ReplaceTeacherSubjects(ctx context.Context, teacherID int, subjectIDs []int) error {
+	tx, err := p.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var exists bool
+	if err := tx.QueryRowContext(ctx,
+		`SELECT EXISTS (SELECT 1 FROM teachers WHERE id = $1)`, teacherID).Scan(&exists); err != nil {
+		return err
+	}
+	if !exists {
+		return &shared.NotFoundError{Msg: fmt.Sprintf("teacher %d not found", teacherID)}
+	}
+
+	if _, err := tx.ExecContext(ctx,
+		`DELETE FROM teacher_subjects WHERE teacher_id = $1`, teacherID); err != nil {
+		return err
+	}
+
+	if len(subjectIDs) > 0 {
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO teacher_subjects (teacher_id, subject_id)
+			SELECT $1, id FROM subjects WHERE id = ANY($2)`,
+			teacherID, subjectIDs); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
 func (p *PostgresRepo) GetSubjects(ctx context.Context) ([]shared.Subject, error) {
 	rows, err := p.DB.QueryContext(ctx, `SELECT id, name FROM subjects ORDER BY id`)
 	if err != nil {

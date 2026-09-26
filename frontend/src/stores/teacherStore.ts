@@ -26,9 +26,10 @@ export const useTeacherStore = defineStore('teacher', {
       const teacher = this.teachers.find((t) => t.id === id)
       if (teacher) teacher.gender = gender as 'male' | 'female' | 'lgbtq+'
     },
-    async createTeacher(name: string, email: string, gender: string) {
+    async createTeacher(name: string, email: string, gender: string): Promise<Teacher> {
       const created = await teacherApi.create(name, email, gender)
       this.teachers.push(created)
+      return created
     },
     setSelectedTeacherById(id: number | null) {
       this.selectedTeacherId = id

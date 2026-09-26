@@ -1,6 +1,6 @@
 import { ref, onUnmounted, type Ref } from 'vue'
 import type FullCalendar from '@fullcalendar/vue3'
-import type { EventInput, DateSelectArg, EventClickArg, EventDropArg } from '@fullcalendar/core'
+import type { EventInput, DateSelectInfo, EventClickInfo, EventDropInfo } from '@fullcalendar/vue3'
 import {
   isSameDay,
   isSameDaySelection,
@@ -18,7 +18,7 @@ interface InteractionOptions {
   getModelValue: () => EventInput[]
   getAdditionalEvents: () => EventInput[]
   onUpdate: (events: EventInput[]) => void
-  onEventClick: (info: EventClickArg) => void
+  onEventClick: (info: EventClickInfo) => void
 
   isSlotAllowed?: (start: Date, end: Date) => boolean
 }
@@ -57,7 +57,7 @@ export function useCalendarInteraction(options: InteractionOptions) {
 
   const editableModelValue = (): EventInput[] => getModelValue().filter((e) => e.editable !== false)
 
-  const handleDateSelect = (selectInfo: DateSelectArg) => {
+  const handleDateSelect = (selectInfo: DateSelectInfo) => {
     if (!isEditable()) return
     if (overlapsBlockingEvent(selectInfo.start, selectInfo.end)) return
 
@@ -116,7 +116,7 @@ export function useCalendarInteraction(options: InteractionOptions) {
     onUpdate(getCurrentEvents())
   }
 
-  const handleEventDrop = (info: EventDropArg) => {
+  const handleEventDrop = (info: EventDropInfo) => {
     const oldStart = info.oldEvent.start
     const newStart = info.event.start
     if (!oldStart || !newStart || !isSameDay(oldStart, newStart)) {
@@ -140,7 +140,7 @@ export function useCalendarInteraction(options: InteractionOptions) {
     handleEventChange()
   }
 
-  const SELECTED_CLASS = 'fc-event-selected'
+  const SELECTED_CLASS = 'event-selected'
   const selectedEventId = ref<string | null>(null)
   const selectedEventEl = ref<HTMLElement | null>(null)
 
@@ -163,9 +163,6 @@ export function useCalendarInteraction(options: InteractionOptions) {
     }
   }
 
-  const handleEventClassNames = (arg: { event: { id: string } }): string[] =>
-    arg.event.id === selectedEventId.value ? [SELECTED_CLASS] : []
-
   const isUserEvent = (id: string): boolean => getModelValue().some((e) => e.id === id)
 
   const deleteEvent = (id: string) => {
@@ -181,7 +178,7 @@ export function useCalendarInteraction(options: InteractionOptions) {
   const lastClickTime = ref(0)
   const lastClickedEventId = ref<string | null>(null)
 
-  const handleEventClick = (clickInfo: EventClickArg) => {
+  const handleEventClick = (clickInfo: EventClickInfo) => {
     const id = clickInfo.event.id
     if (!id) return
 
@@ -282,7 +279,6 @@ export function useCalendarInteraction(options: InteractionOptions) {
     handleEventClick,
     handleEventDrop,
     handleEventResize,
-    handleEventClassNames,
     handleEventDidMount,
     handleEventWillUnmount,
   }

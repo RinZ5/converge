@@ -282,6 +282,16 @@ definitions:
     required:
     - status
     type: object
+  teacher.UpdateSubjectsRequest:
+    properties:
+      subject_ids:
+        example:
+        - 1
+        - 2
+        items:
+          type: integer
+        type: array
+    type: object
   user.AuthResponse:
     properties:
       token:
@@ -1296,6 +1306,95 @@ paths:
       security:
       - BearerAuth: []
       summary: Toggle teacher active/deactivated status
+      tags:
+      - teachers
+  /teachers/{id}/subjects:
+    get:
+      description: Returns the subjects a teacher is assigned to teach, ordered by
+        name.
+      parameters:
+      - description: Teacher ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/shared.Subject'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List a teacher's subjects
+      tags:
+      - teachers
+    put:
+      consumes:
+      - application/json
+      description: Replaces the teacher's whole subject list with the one supplied
+        (full replace, not merge). An empty list clears it.
+      parameters:
+      - description: Teacher ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Subject ids
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/teacher.UpdateSubjectsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/scheduling.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Replace a teacher's subjects
       tags:
       - teachers
 securityDefinitions:

@@ -1,19 +1,25 @@
 <script setup lang="ts">
   import { ref, computed } from 'vue'
+  import { Trash2, X } from '@lucide/vue'
   import FullCalendar from '@fullcalendar/vue3'
-  import timeGridPlugin from '@fullcalendar/timegrid'
-  import interactionPlugin from '@fullcalendar/interaction'
+  import { Button } from '@/components/ui/button'
+  import timeGridPlugin from '@fullcalendar/vue3/timegrid'
+  import interactionPlugin from '@fullcalendar/vue3/interaction'
+  // v7 ships no styling of its own. The theme plugin is the JS half; its three
+  // stylesheets are imported from style.css so they load before the bridge that
+  // re-points their variables at the Soft Sage tokens.
+  import themePlugin from '@fullcalendar/vue3/themes/classic'
   import { useCalendarResponsive } from '../composables/cart/useCalendarResponsive'
   import { useCalendarEventSync } from '../composables/cart/useCalendarEventSync'
   import { useBusinessHoursHeaders } from '../composables/cart/useBusinessHoursHeaders'
   import { useCalendarInteraction } from '../composables/cart/useCalendarInteraction'
   import type {
     EventInput,
-    EventClickArg,
+    EventClickInfo,
     BusinessHoursInput,
     CalendarOptions,
-    DatesSetArg,
-  } from '@fullcalendar/core'
+    DatesSetInfo,
+  } from '@fullcalendar/vue3'
 
   interface Props {
     editable?: boolean
@@ -35,7 +41,7 @@
   })
   const emit = defineEmits<{
     'update:modelValue': [value: EventInput[]]
-    'event-click': [info: EventClickArg]
+    'event-click': [info: EventClickInfo]
 
     'dates-set': [range: { start: Date; end: Date }]
   }>()
@@ -87,7 +93,6 @@
     handleEventClick,
     handleEventDrop,
     handleEventResize,
-    handleEventClassNames,
     handleEventDidMount,
     handleEventWillUnmount,
   } = useCalendarInteraction({
@@ -112,77 +117,29 @@
     true
   )
 
-  const formatTimeRange = (start: Date, end: Date): string => {
-    const startHours = start.getHours()
-    const endHours = end.getHours()
-    const startAmpm = startHours >= 12 ? 'PM' : 'AM'
-    const endAmpm = endHours >= 12 ? 'PM' : 'AM'
+  // 24-hour, matching every other time on screen. The old formatter produced
+  // "9-10 AM" here while the rest of the app showed 09:00-10:00.
+  const timeFormat = new Intl.DateTimeFormat('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
 
-    const formatTime = (hours: number, minutes: number): string =>
-      minutes === 0
-        ? String(hours % 12 || 12)
-        : `${hours % 12 || 12}:${minutes.toString().padStart(2, '0')}`
+  const formatTimeRange = (start: Date, end: Date): string =>
+    `${timeFormat.format(start)}\u2013${timeFormat.format(end)}`
 
-    const startFormatted = formatTime(startHours, start.getMinutes())
-    const endFormatted = formatTime(endHours, end.getMinutes())
+  // A browse block only has room for the time once it is taller than an hour.
+  const BROWSE_TIME_MIN_MS = 60 * 60 * 1000
 
-    if (startAmpm === endAmpm) {
-      return `${startFormatted}–${endFormatted} ${startAmpm}`
-    }
-    return `${startFormatted} ${startAmpm}–${endFormatted} ${endAmpm}`
-  }
+  const showsBrowseTime = (start: Date | null, end: Date | null): boolean =>
+    Boolean(start && end && end.getTime() - start.getTime() > BROWSE_TIME_MIN_MS)
 
-  const escapeHtml = (value: string): string =>
-    value.replace(
-      /[&<>"']/g,
-      (char) =>
-        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char] ?? char
-    )
-
-  const handleEventContent = (arg: {
-    event: { start: Date | null; end: Date | null; extendedProps?: Record<string, unknown> }
-  }) => {
-    const start = arg.event.start
-    const end = arg.event.end
-    if (!start || !end) return {}
-
-    const timeRange = formatTimeRange(new Date(start), new Date(end))
-    const p = arg.event.extendedProps
-
-    if (p?.isBrowse) {
-      const showTime = end.getTime() - start.getTime() > 60 * 60 * 1000
-      return {
-        html: `
-          <div class="custom-event-content browse-event-content">
-            <div class="browse-event-label">${escapeHtml(String(p.browseLabel ?? ''))}</div>
-            ${showTime ? `<div class="browse-event-time">${timeRange}</div>` : ''}
-          </div>
-        `,
-      }
-    }
-
-    const isRemovable = !p?.isCartItem && !p?.isBooked && !p?.isSuggestion
-
-    const deleteButton = isRemovable
-      ? `<button type="button" class="event-delete-btn" aria-label="Remove this time slot" title="Remove this time slot">
-           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
-             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-           </svg>
-         </button>`
-      : ''
-
-    return {
-      html: `
-        <div class="custom-event-content">
-          <div class="event-time-range">${timeRange}</div>
-          ${deleteButton}
-        </div>
-      `,
-    }
-  }
+  const canRemove = (eventProps?: Record<string, unknown>): boolean =>
+    !eventProps?.isCartItem && !eventProps?.isBooked && !eventProps?.isSuggestion
 
   const CALENDAR_DEFAULT_OPTIONS = {
     height: '100%',
+    expandRows: true,
     weekends: true,
     allDaySlot: false,
     selectMirror: true,
@@ -198,7 +155,7 @@
   } as const
 
   const calendarOptions = computed(() => ({
-    plugins: [timeGridPlugin, interactionPlugin],
+    plugins: [themePlugin, timeGridPlugin, interactionPlugin],
     ...CALENDAR_DEFAULT_OPTIONS,
     headerToolbar: props.showHeader
       ? ({ left: 'prev', center: 'title', right: 'next' } as const)
@@ -209,8 +166,6 @@
     eventDurationEditable: props.editable,
     eventResizableFromStart: props.editable,
     displayEventTime: false,
-    eventContent: handleEventContent,
-    eventClassNames: handleEventClassNames,
     eventDidMount: handleEventDidMount,
     eventWillUnmount: handleEventWillUnmount,
     businessHours: props.businessHours,
@@ -223,7 +178,7 @@
     eventClick: handleEventClick,
     eventDrop: handleEventDrop,
     eventResize: handleEventResize,
-    datesSet: (arg: DatesSetArg) => emit('dates-set', { start: arg.start, end: arg.end }),
+    datesSet: (arg: DatesSetInfo) => emit('dates-set', { start: arg.start, end: arg.end }),
     dayHeaderFormat: dayHeaderFormat.value,
     longPressDelay: longPressDelay.value,
     eventLongPressDelay: longPressDelay.value,
@@ -242,10 +197,59 @@
 
 <template>
   <div
-    class="calendar-container h-full overflow-x-hidden overflow-y-auto rounded-2xl border border-(--border-subtle) bg-(--paper-white) shadow-[0_4px_16px_rgba(45,74,62,0.06)] [-webkit-tap-highlight-color:transparent] **:[-webkit-tap-highlight-color:transparent] md:overflow-y-hidden"
+    class="calendar-container bg-card border-border h-full overflow-x-hidden overflow-y-auto rounded-2xl border shadow-[var(--shadow-card)] [-webkit-tap-highlight-color:transparent] **:[-webkit-tap-highlight-color:transparent] md:overflow-y-hidden"
     @click="handleContainerClick"
   >
-    <FullCalendar ref="calendarRef" :options="calendarOptions" />
+    <FullCalendar ref="calendarRef" :options="calendarOptions">
+      <!-- Rendered as a slot rather than an HTML string built in script: Vue
+           escapes the teacher name for us (the old path hand-rolled escapeHtml),
+           and the classes live here, so Tailwind reaches them and the matching
+           :deep() rules are no longer needed. The event-delete-btn class stays
+           because useCalendarInteraction finds the button with closest(). -->
+      <template #eventContent="arg">
+        <div
+          v-if="arg.event.extendedProps?.isBrowse"
+          class="flex w-full max-w-full flex-col items-stretch justify-start gap-px overflow-hidden"
+        >
+          <span class="text-2xs truncate leading-tight font-semibold">
+            {{ arg.event.extendedProps.browseLabel }}
+          </span>
+          <span
+            v-if="showsBrowseTime(arg.event.start, arg.event.end)"
+            class="truncate text-[0.625rem] leading-tight opacity-75"
+          >
+            {{ formatTimeRange(arg.event.start, arg.event.end) }}
+          </span>
+        </div>
+
+        <div
+          v-else-if="arg.event.extendedProps?.isBooked"
+          class="flex h-full max-w-full items-center justify-center"
+        >
+          <span class="truncate text-xs font-medium">{{ arg.event.title || 'Booked' }}</span>
+        </div>
+
+        <div v-else class="group relative h-full max-w-full">
+          <span class="block max-w-full truncate">
+            {{
+              arg.event.start && arg.event.end
+                ? formatTimeRange(arg.event.start, arg.event.end)
+                : ''
+            }}
+          </span>
+
+          <button
+            v-if="canRemove(arg.event.extendedProps)"
+            type="button"
+            class="event-delete-btn text-danger hover:bg-card focus-visible:ring-ring absolute top-0.5 right-0.5 flex size-[18px] items-center justify-center rounded-full border-none bg-[color-mix(in_srgb,var(--bg-card)_90%,transparent)] p-0 opacity-0 transition-[opacity,transform] group-hover:opacity-100 hover:scale-110 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:outline-none max-[767px]:size-[22px] max-[767px]:opacity-100"
+            aria-label="Remove this time slot"
+            title="Remove this time slot"
+          >
+            <X class="size-[11px] max-[767px]:size-[13px]" :stroke-width="2.5" />
+          </button>
+        </div>
+      </template>
+    </FullCalendar>
     <Transition
       enter-active-class="transition-opacity duration-200"
       enter-from-class="opacity-0"
@@ -254,220 +258,34 @@
       leave-from-class="opacity-100"
       leave-to-class="opacity-0"
     >
-      <button
+      <Button
         v-if="selectedEventId && isMobile"
-        type="button"
-        class="fixed bottom-8 left-1/2 z-30 flex -translate-x-1/2 cursor-pointer items-center gap-2 rounded-2xl px-6 py-3.5 text-[0.9375rem] font-semibold text-white shadow-[0_6px_20px_rgba(232,165,152,0.4)] transition-all duration-200 [-webkit-tap-highlight-color:transparent] active:scale-[0.96]"
-        style="
-          background: linear-gradient(
-            135deg,
-            var(--accent-coral) 0%,
-            var(--accent-coral-light) 100%
-          );
-        "
+        class="bg-danger text-on-accent hover:bg-danger fixed bottom-8 left-1/2 z-30 -translate-x-1/2 rounded-2xl px-6 py-3.5 shadow-lg [-webkit-tap-highlight-color:transparent] active:scale-[0.96]"
         @click="handleDeleteButtonClick($event, selectedEventId)"
       >
-        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-          />
-        </svg>
+        <Trash2 />
         Delete
-      </button>
+      </Button>
     </Transition>
   </div>
 </template>
 
 <style scoped>
-  @media (max-width: 767px) {
-    :deep(.fc-event.fc-event-selected) {
-      opacity: 1;
-      box-shadow: 0 0 0 3px var(--accent-sage);
-    }
+  /* Everything here used to reach into FullCalendar's DOM by class name. v7
+     emits hashed names, so only two things are still expressible in CSS, and
+     both key off state on an element we do not render. The rest moved into the
+     eventContent slot or onto our own event classes in style.css. */
 
-    :deep(.fc-event.fc-event-selected .fc-event-resizer) {
-      width: 20px !important;
-      height: 20px !important;
-      background: rgba(157, 180, 160, 0.9) !important;
-      border: 2px solid white !important;
-      opacity: 1 !important;
-    }
-  }
-
-  :deep(.fc-event-selected .fc-event-resizer) {
-    background: rgba(157, 180, 160, 0.4);
-    width: 12px;
-    height: 12px;
-  }
-
-  :deep(.fc-timegrid-col-bg:has(.capacity-event)) {
-    z-index: 4;
-    pointer-events: none;
-  }
-
-  :deep(.fc-bg-event.capacity-event) {
+  /* Hover reveal lives on the slot wrapper as group-hover. This rule only
+     covers the selected case, whose class we add ourselves. */
+  :deep(.event-selected .event-delete-btn) {
     opacity: 1;
-    background: repeating-linear-gradient(
-      135deg,
-      rgba(232, 165, 152, 0.72) 0,
-      rgba(232, 165, 152, 0.72) 7px,
-      rgba(245, 199, 191, 0.72) 7px,
-      rgba(245, 199, 191, 0.72) 14px
-    ) !important;
-    border-top: 1px solid color-mix(in srgb, var(--danger) 90%, transparent);
-    border-bottom: 1px solid color-mix(in srgb, var(--danger) 90%, transparent);
   }
 
-  :deep(.fc-event.commute-unavailable) {
-    opacity: 1;
-    background: color-mix(in srgb, var(--text-muted) 12%, transparent) !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    pointer-events: none;
-  }
-
-  :deep(.fc-timegrid-event-harness:has(.commute-unavailable)) {
-    pointer-events: none;
-  }
-
-  :deep(.fc-event.commute-unavailable .fc-event-main) {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    padding: 0 !important;
-    font-size: 0;
-  }
-
-  :deep(.fc-event.commute-unavailable .fc-event-main::before) {
-    content: 'Commute';
-    position: absolute;
-    inset: 0;
-    display: grid;
-    place-items: center;
-    color: color-mix(in srgb, var(--text-secondary) 80%, transparent);
-    font-size: 0.5625rem;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
-  :deep(.browse-event) {
-    cursor: pointer;
-    border-width: 1px;
-    border-style: solid;
-  }
-
-  :deep(.custom-event-content) {
-    max-width: 100%;
-  }
-
-  :deep(.event-time-range) {
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  :deep(.browse-event-content) {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    justify-content: flex-start;
-    gap: 1px;
-    width: 100%;
-    overflow: hidden;
-  }
-
-  :deep(.fc-event.browse-event .fc-event-main) {
-    padding: 4px 5px;
-    text-align: left;
-    font-family: 'Inter', sans-serif;
-  }
-
-  :deep(.browse-event-label),
-  :deep(.browse-event-time) {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    line-height: 1.25;
-    font-family: 'Inter', sans-serif;
-  }
-
-  :deep(.browse-event-label) {
-    font-size: 0.6875rem;
-    font-weight: 600;
-  }
-
-  :deep(.browse-event-time) {
-    font-size: 0.625rem;
-    font-weight: 400;
-    opacity: 0.75;
-  }
-
-  :deep(.custom-event-content) {
-    position: relative;
-    height: 100%;
-  }
-
-  :deep(.event-delete-btn) {
-    position: absolute;
-    top: 2px;
-    right: 2px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 18px;
-    height: 18px;
-    padding: 0;
-    border: none;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.9);
-    color: var(--accent-coral);
-    cursor: pointer;
-    opacity: 0;
-    transition:
-      opacity 0.15s ease,
-      transform 0.15s ease;
-  }
-
-  :deep(.event-delete-btn svg) {
-    width: 11px;
-    height: 11px;
-  }
-
-  :deep(.event-delete-btn:hover) {
-    background: var(--bg-card);
-    transform: scale(1.1);
-  }
-
-  :deep(.event-delete-btn:focus-visible) {
-    opacity: 1;
-    outline: 2px solid var(--accent-sage);
-    outline-offset: 1px;
-  }
-
-  @media (hover: hover) {
-    :deep(.fc-event:hover .event-delete-btn),
-    :deep(.fc-event-selected .event-delete-btn) {
-      opacity: 1;
-    }
-  }
-
-  @media (hover: none) {
-    :deep(.event-delete-btn) {
-      opacity: 1;
-      width: 22px;
-      height: 22px;
-    }
-
-    :deep(.event-delete-btn svg) {
-      width: 13px;
-      height: 13px;
-    }
+  /* Our own selection marker, applied by useCalendarInteraction. It used to
+     borrow FullCalendar's .fc-event-selected class, which no longer exists. */
+  :deep(.event-selected) {
+    box-shadow: 0 0 0 2px var(--accent-sage);
+    z-index: 10 !important;
   }
 </style>

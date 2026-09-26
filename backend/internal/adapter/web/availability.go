@@ -24,6 +24,8 @@ type teacherService interface {
 	AddTeacher(ctx context.Context, name, email, gender string) (*teacher.Teacher, error)
 	SetStatus(ctx context.Context, teacherID int, status string) error
 	SetGender(ctx context.Context, teacherID int, gender string) error
+	SubjectsForTeacher(ctx context.Context, teacherID int) ([]shared.Subject, error)
+	SetTeacherSubjects(ctx context.Context, teacherID int, subjectIDs []int) error
 }
 
 type AvailabilityHandler struct {
@@ -298,4 +300,80 @@ func (h *AvailabilityHandler) UpdateTeacherGender(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Teacher gender updated successfully"})
+}
+
+// GetTeacherSubjects godoc
+// @Summary      List a teacher's subjects
+// @Description  Returns the subjects a teacher is assigned to teach, ordered by name.
+// @Tags         teachers
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id  path  int  true  "Teacher ID"
+// @Success      200  {array}   shared.Subject
+// @Failure      400  {object}  scheduling.ErrorResponse
+// @Failure      401  {object}  scheduling.ErrorResponse
+// @Failure      403  {object}  scheduling.ErrorResponse
+// @Failure      500  {object}  scheduling.ErrorResponse
+// @Router       /teachers/{id}/subjects [get]
+func (h *AvailabilityHandler) GetTeacherSubjects(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid teacher id"})
+		return
+	}
+
+	subjects, err := h.svc.SubjectsForTeacher(c.Request.Context(), id)
+	if err != nil {
+		var valErr *teacher.ValidationError
+		if errors.As(err, &valErr) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		h.logger.Error("request failed",
+			"request_id", requestID(c),
+			"op", "GetTeacherSubjects",
+			"teacher_id", id,
+			"error", err,
+		)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve teacher subjects"})
+		return
+	}
+	c.JSON(http.StatusOK, orEmpty(subjects))
+}
+
+// UpdateTeacherSubjects godoc
+// @Summary      Replace a teacher's subjects
+// @Description  Replaces the teacher's whole subject list with the one supplied (full replace, not merge). An empty list clears it.
+// @Tags         teachers
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id    path  int                           true  "Teacher ID"
+// @Param        body  body  teacher.UpdateSubjectsRequest  true  "Subject ids"
+// @Success      200  {object}  scheduling.MessageResponse
+// @Failure      400  {object}  scheduling.ErrorResponse
+// @Failure      401  {object}  scheduling.ErrorResponse
+// @Failure      403  {object}  scheduling.ErrorResponse
+// @Failure      404  {object}  scheduling.ErrorResponse
+// @Failure      500  {object}  scheduling.ErrorResponse
+// @Router       /teachers/{id}/subjects [put]
+func (h *AvailabilityHandler) UpdateTeacherSubjects(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid teacher id"})
+		return
+	}
+
+	var req teacher.UpdateSubjectsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.svc.SetTeacherSubjects(c.Request.Context(), id, req.SubjectIDs); err != nil {
+		respondFieldUpdateErr(c, h.logger, err, "UpdateTeacherSubjects/SetTeacherSubjects", "teacher", id, "failed to update teacher subjects")
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Teacher subjects updated successfully"})
 }

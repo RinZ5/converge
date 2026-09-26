@@ -1,4 +1,4 @@
-import type { EventInput } from '@fullcalendar/core'
+import type { EventInput } from '@fullcalendar/vue3'
 import type { AvailabilityPayload } from '../types'
 
 function generateEventId(): string {
@@ -27,6 +27,7 @@ export function createEvent(start: Date, end: Date): EventInput {
     start,
     end,
     title: '',
+    className: 'draft-event',
   }
 }
 

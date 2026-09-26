@@ -51,6 +51,16 @@ const PAIRS: [string, string, string, number][] = [
   ['success toast label', 'on-accent', 'success', 4.5],
   ['danger toast label', 'on-accent', 'danger', 4.5],
   ['amber fill ink (never white)', 'on-amber', 'accent-amber', 4.5],
+  // The calendar paints white on the default event colour.
+  ['calendar event label', 'on-accent', 'accent-sage-deep', 4.5],
+  // Per-teacher browse tones: categorical, and all carry the dark label.
+  ['teacher tone 1', 'text-primary', 'teacher-1', 4.5],
+  ['teacher tone 2', 'text-primary', 'teacher-2', 4.5],
+  ['teacher tone 3', 'text-primary', 'teacher-3', 4.5],
+  ['teacher tone 4', 'text-primary', 'teacher-4', 4.5],
+  ['teacher tone 5', 'text-primary', 'teacher-5', 4.5],
+  ['teacher tone 6', 'text-primary', 'teacher-6', 4.5],
+  ['shared browse block', 'text-primary', 'border-medium', 4.5],
   ['success text on its surface', 'success-text', 'success-surface', 4.5],
   ['warning text on its surface', 'warning-text', 'warning-surface', 4.5],
   ['danger text on its surface', 'danger-text', 'danger-surface', 4.5],

@@ -4,6 +4,8 @@
   import { ChevronLeft, ShoppingCart } from '@lucide/vue'
   import { useCart } from '../composables/useCart'
   import { useAuthStore } from '../stores/authStore'
+  import { Badge } from '@/components/ui/badge'
+  import { Button } from '@/components/ui/button'
 
   interface Props {
     title: string
@@ -21,11 +23,10 @@
   const router = useRouter()
   const { cartItems, loadCart } = useCart()
   const auth = useAuthStore()
+
   const cartCount = computed(() => cartItems.value.length)
 
-  const goToCart = () => {
-    router.push('/booking/confirm')
-  }
+  const goToCart = () => router.push('/booking/confirm')
 
   const handleLogout = () => {
     auth.logout()
@@ -33,351 +34,58 @@
     router.replace('/login')
   }
 
-  onMounted(() => {
-    loadCart()
-  })
+  onMounted(loadCart)
 </script>
 
 <template>
-  <header class="app-navbar">
-    <div class="navbar-container">
-      <div class="navbar-left">
-        <router-link v-if="backTo" :to="backTo" class="navbar-back" :aria-label="backLabel">
-          <ChevronLeft class="navbar-back-icon" aria-hidden="true" />
-          <span class="navbar-back-label">{{ backLabel }}</span>
-        </router-link>
-        <div class="navbar-indicator"></div>
-        <h1 class="navbar-title">{{ title }}</h1>
+  <header class="bg-card border-border sticky top-0 z-50 border-b">
+    <div class="flex h-14 w-full items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+      <div class="flex min-w-0 flex-1 items-center gap-3">
+        <RouterLink v-if="backTo" :to="backTo" :aria-label="backLabel">
+          <Button variant="outline" size="sm">
+            <ChevronLeft />
+            <span class="max-sm:sr-only">{{ backLabel }}</span>
+          </Button>
+        </RouterLink>
+
+        <!-- The bar carries the brand colour into every page; the title alone
+             sat on white with nothing to anchor it. -->
+        <span class="bg-primary h-5 w-1 shrink-0 rounded-full" aria-hidden="true"></span>
+
+        <h1 class="truncate text-base font-semibold tracking-tight sm:text-lg">{{ title }}</h1>
       </div>
-      <div class="navbar-right">
-        <button
+
+      <div class="flex shrink-0 items-center gap-2">
+        <Button
           v-if="showCart"
-          type="button"
-          class="navbar-cart"
-          :class="{ 'navbar-cart--active': cartCount > 0 }"
+          variant="ghost"
+          size="icon-sm"
+          class="relative"
           aria-label="View cart"
           @click="goToCart"
         >
-          <ShoppingCart class="navbar-cart-icon" aria-hidden="true" />
-          <span v-if="cartCount > 0" class="navbar-cart-badge">{{
-            cartCount > 9 ? '9+' : cartCount
-          }}</span>
-        </button>
+          <ShoppingCart />
+          <!-- The count is the page's one attention signal, so it wears the
+               10% accent with dark ink rather than a red alert badge. -->
+          <Badge
+            v-if="cartCount > 0"
+            class="bg-accent-amber text-on-amber ring-card absolute -top-1 -right-1 h-4 min-w-4 justify-center px-1 text-[0.625rem] tabular-nums ring-2"
+          >
+            {{ cartCount > 9 ? '9+' : cartCount }}
+          </Badge>
+        </Button>
 
         <template v-if="auth.isAuthenticated">
-          <span class="navbar-user">
-            {{ auth.user?.name }}
-            <span class="navbar-role">{{ auth.user?.role }}</span>
+          <span class="hidden items-center gap-2 text-sm sm:flex">
+            <span class="max-w-32 truncate font-medium">{{ auth.user?.name }}</span>
+            <Badge variant="secondary" class="font-normal capitalize">{{ auth.user?.role }}</Badge>
           </span>
-          <button type="button" class="navbar-logout" @click="handleLogout">Sign out</button>
+          <Button variant="outline" size="sm" @click="handleLogout">Sign out</Button>
         </template>
-        <router-link v-else to="/login" class="navbar-logout">Sign in</router-link>
+        <RouterLink v-else to="/login">
+          <Button variant="outline" size="sm">Sign in</Button>
+        </RouterLink>
       </div>
     </div>
   </header>
 </template>
-
-<style scoped>
-  .app-navbar {
-    position: sticky;
-    top: 0;
-    z-index: 1000;
-    background: var(--bg-card);
-    border-bottom: 1px solid var(--border-subtle);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  }
-
-  .navbar-container {
-    width: 100%;
-    height: 60px;
-    padding: 0 1.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-  }
-
-  .navbar-left {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    min-width: 0;
-    flex: 1;
-  }
-
-  .navbar-back {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.125rem;
-    padding: 0.375rem 0.625rem 0.375rem 0.375rem;
-    font-family: Inter, sans-serif;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    color: var(--text-muted);
-    background: transparent;
-    border: 1px solid var(--border-subtle);
-    border-radius: 8px;
-    text-decoration: none;
-    white-space: nowrap;
-    flex-shrink: 0;
-    transition: all 0.15s ease;
-  }
-
-  .navbar-back:hover {
-    color: var(--text-primary);
-    background: var(--neutral-50);
-  }
-
-  .navbar-back-icon {
-    width: 1rem;
-    height: 1rem;
-  }
-
-  .navbar-indicator {
-    width: 4px;
-    height: 1.25rem;
-    background: var(--primary-navy);
-    border-radius: 2px;
-    flex-shrink: 0;
-  }
-
-  .navbar-title {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    font-family:
-      'Instrument Sans',
-      'DM Sans',
-      -apple-system,
-      sans-serif;
-    letter-spacing: -0.02em;
-    line-height: 1.2;
-  }
-
-  .navbar-right {
-    display: flex;
-    align-items: center;
-    gap: 0.625rem;
-    flex-shrink: 0;
-  }
-
-  .navbar-user {
-    display: flex;
-    align-items: center;
-    gap: 0.375rem;
-    font-family: Inter, sans-serif;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    color: var(--text-secondary);
-    white-space: nowrap;
-  }
-
-  .navbar-role {
-    padding: 0.125rem 0.4375rem;
-    font-size: 0.6875rem;
-    font-weight: 600;
-    color: var(--text-muted);
-    background: var(--bg-subtle);
-    border-radius: 9999px;
-    text-transform: capitalize;
-  }
-
-  .navbar-logout {
-    padding: 0.375rem 0.75rem;
-    font-family: Inter, sans-serif;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    color: var(--text-muted);
-    background: transparent;
-    border: 1px solid var(--border-subtle);
-    border-radius: 8px;
-    cursor: pointer;
-    text-decoration: none;
-    white-space: nowrap;
-    transition: all 0.15s ease;
-  }
-
-  .navbar-logout:hover {
-    color: var(--text-primary);
-    background: var(--neutral-50);
-  }
-
-  @media (max-width: 767px) {
-    .navbar-user {
-      display: none;
-    }
-
-    .navbar-back-label {
-      display: none;
-    }
-
-    .navbar-back {
-      padding: 0.375rem;
-    }
-  }
-
-  .navbar-cart {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.25rem;
-    height: 2.25rem;
-    color: var(--text-muted);
-    background: var(--bg-subtle);
-    border: 1px solid transparent;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    flex-shrink: 0;
-  }
-
-  .navbar-cart:hover {
-    color: var(--primary-navy);
-    background: var(--neutral-300);
-  }
-
-  .navbar-cart--active {
-    color: var(--primary-navy);
-    background: color-mix(in srgb, var(--accent-amber) 18%, transparent);
-    border-color: color-mix(in srgb, var(--accent-amber) 35%, transparent);
-  }
-
-  .navbar-cart--active:hover {
-    background: color-mix(in srgb, var(--accent-amber) 26%, transparent);
-  }
-
-  .navbar-cart-icon {
-    width: 1.125rem;
-    height: 1.125rem;
-    stroke-width: 1.5;
-  }
-
-  .navbar-cart-badge {
-    position: absolute;
-    top: -3px;
-    right: -3px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 1rem;
-    height: 1rem;
-    padding: 0 0.25rem;
-    font-size: 0.5625rem;
-    font-weight: 600;
-    font-family: 'JetBrains Mono', 'SF Mono', monospace;
-    color: var(--on-amber);
-    background: var(--accent-amber);
-    border-radius: 9999px;
-    border: 2px solid var(--bg-card);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-  }
-
-  @media (min-width: 768px) and (max-width: 1439px) {
-    .navbar-container {
-      height: 60px;
-      padding: 0 1.25rem;
-    }
-
-    .navbar-indicator {
-      width: 3px;
-      height: 1.125rem;
-    }
-
-    .navbar-title {
-      font-size: 1.125rem;
-    }
-
-    .navbar-cart {
-      width: 2.125rem;
-      height: 2.125rem;
-    }
-
-    .navbar-cart-icon {
-      width: 1.0625rem;
-      height: 1.0625rem;
-    }
-
-    .navbar-cart-badge {
-      top: -3px;
-      right: -3px;
-      min-width: 0.9375rem;
-      height: 0.9375rem;
-      font-size: 0.53125rem;
-      padding: 0 0.21875rem;
-    }
-  }
-
-  @media (max-width: 767px) {
-    .navbar-container {
-      height: 60px;
-      padding: 0 1rem;
-    }
-
-    .navbar-indicator {
-      width: 2px;
-      height: 1rem;
-      background: var(--text-primary);
-    }
-
-    .navbar-title {
-      font-size: 1rem;
-    }
-
-    .navbar-cart {
-      width: 2rem;
-      height: 2rem;
-      background: transparent;
-      border-color: transparent;
-      color: var(--text-primary);
-    }
-
-    .navbar-cart:hover {
-      background: var(--bg-subtle);
-    }
-
-    .navbar-cart--active {
-      background: transparent;
-      border-color: transparent;
-    }
-
-    .navbar-cart--active:hover {
-      background: var(--bg-subtle);
-    }
-
-    .navbar-cart-icon {
-      width: 1.125rem;
-      height: 1.125rem;
-    }
-
-    .navbar-cart-badge {
-      top: -2px;
-      right: -2px;
-      min-width: 0.875rem;
-      height: 0.875rem;
-      font-size: 0.5rem;
-      border-width: 1.5px;
-    }
-  }
-
-  @media (max-width: 424px) {
-    .navbar-container {
-      height: 60px;
-      padding: 0 0.875rem;
-    }
-
-    .navbar-title {
-      font-size: 0.9375rem;
-    }
-
-    .navbar-cart {
-      width: 1.875rem;
-      height: 1.875rem;
-    }
-
-    .navbar-cart-icon {
-      width: 1rem;
-      height: 1rem;
-    }
-  }
-</style>

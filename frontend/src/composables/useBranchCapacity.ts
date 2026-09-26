@@ -3,7 +3,7 @@ import { storeToRefs } from 'pinia'
 import { useBookingStore } from '../stores/bookingStore'
 import { useCartStore } from '../stores/cartStore'
 import { fullCapacitySpans, overlapsFullCapacity } from '../utils/branchCapacity'
-import type { EventInput } from '@fullcalendar/core'
+import type { EventInput } from '@fullcalendar/vue3'
 
 export function useBranchCapacity() {
   const bookingStore = useBookingStore()
@@ -32,8 +32,8 @@ export function useBranchCapacity() {
       end: new Date(span.end).toISOString(),
       display: 'background',
       editable: false,
-      backgroundColor: 'rgba(232, 165, 152, 0.28)',
-      classNames: ['capacity-event'],
+      color: 'var(--accent-coral)',
+      className: 'capacity-event',
       extendedProps: { isCapacityWarning: true },
     }))
   )
