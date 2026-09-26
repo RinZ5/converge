@@ -12,6 +12,7 @@
   import { Badge } from '@/components/ui/badge'
   import { Button } from '@/components/ui/button'
   import { Card, CardContent } from '@/components/ui/card'
+  import { Input } from '@/components/ui/input'
 
   const { mode, search, entries, allEntries, counts, subjectTones, isLoading, loadError, load } =
     useAdminRoster()
@@ -157,11 +158,16 @@
           <Search
             class="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
           />
-          <input
+          <!-- The shared Input, not a bare <input> carrying its own copy of the
+               field styles. The copy had drifted: it still had the focus halo
+               the component dropped, and never had the placeholder, selection
+               or disabled styling every other field in the app has. pl-9 is the
+               only thing actually specific here -- it clears the icon. -->
+          <Input
             v-model="search"
             type="search"
             :aria-label="`Search ${entryNoun}s`"
-            class="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border py-1 pr-3 pl-9 text-sm shadow-xs outline-none focus-visible:ring-3"
+            class="pl-9"
             placeholder="Search by name"
           />
         </div>

@@ -150,7 +150,7 @@
         <Calendar
           v-if="selectedSubjectId"
           :business-hours="businessHours"
-          :paint-business-hours="true"
+          backdrop="hours"
           constraint="businessHours"
           class="h-full"
         />

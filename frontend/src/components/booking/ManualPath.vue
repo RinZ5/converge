@@ -1,8 +1,9 @@
 <script setup lang="ts">
   import { ref, computed, watch, onMounted } from 'vue'
-  import { CalendarOff, Eye, Loader2, X } from '@lucide/vue'
+  import { CalendarOff, Eye, Loader2, UserX, X } from '@lucide/vue'
   import { useBooking } from '../../composables/useBooking'
   import { useBookingContext } from '../../composables/useBookingContext'
+  import { useGenderFilterWarning } from '../../composables/useGenderFilterWarning'
   import {
     useBrowseEvents,
     type BrowseTeacher,
@@ -14,7 +15,9 @@
   import { useBranchCapacity } from '../../composables/useBranchCapacity'
   import { useNotification } from '../../composables/useNotification'
   import { useNumberSelect, useEnumSelect, NONE } from '../../composables/useSelectProxy'
+  import { genderLabel } from '../../utils/gender'
   import Calendar from '../Calendar.vue'
+  import CalendarDisabledOverlay from '../CalendarDisabledOverlay.vue'
   import { Button } from '@/components/ui/button'
   import { Card, CardContent } from '@/components/ui/card'
   import { Label } from '@/components/ui/label'
@@ -41,6 +44,7 @@
   } = useBooking()
 
   const { contextBlocker, contextComplete } = useBookingContext()
+  const { isEmptyFromGenderFilter } = useGenderFilterWarning({ notify: false })
 
   const visibleRange = ref<VisibleRange | null>(null)
   const { browseEvents } = useBrowseEvents(() => visibleRange.value)
@@ -63,6 +67,30 @@
 
   const selectedTeacher = computed(
     () => genderFilteredTeachers.value.find((t) => t.id === selectedTeacherId.value) ?? null
+  )
+
+  // Browse mode with nothing to browse. The grid renders empty and, because
+  // the business-hours band is not painted while browsing, entirely white --
+  // which is the same picture as "every hour is free". The banner above it made
+  // that worse by stating it was showing when every matching teacher is free,
+  // of a set with no members in it.
+  const hasNoMatchingTeachers = computed(
+    () =>
+      calendarState.value === 'browse' &&
+      !isLoadingTeachers.value &&
+      genderFilteredTeachers.value.length === 0
+  )
+
+  const noTeacherMessage = computed(() => {
+    const gender = requiredGender.value
+    if (!isEmptyFromGenderFilter.value || !gender) return 'No teacher teaches this subject yet'
+    return `No ${genderLabel(gender)} teacher teaches this subject`
+  })
+
+  const noTeacherHint = computed(() =>
+    isEmptyFromGenderFilter.value
+      ? 'Try a different gender preference.'
+      : 'Pick a different subject above.'
   )
 
   const hasAvailability = computed(
@@ -158,7 +186,10 @@
             <span class="text-muted-foreground font-normal">(optional)</span>
           </Label>
           <Select v-model="genderValue">
-            <SelectTrigger id="v3-gender" class="w-full">
+            <!-- aria-invalid, not a red class: SelectTrigger already styles the
+                 invalid state, and this way the control is announced as invalid
+                 rather than only looking it. -->
+            <SelectTrigger id="v3-gender" class="w-full" :aria-invalid="isEmptyFromGenderFilter">
               <SelectValue placeholder="Any" />
             </SelectTrigger>
             <SelectContent>
@@ -204,7 +235,7 @@
 
       <div v-else class="flex flex-col gap-3">
         <div
-          v-if="calendarState === 'browse'"
+          v-if="calendarState === 'browse' && !hasNoMatchingTeachers"
           class="border-border bg-muted/40 text-muted-foreground flex items-center gap-2 rounded-md border px-3 py-2 text-xs"
         >
           <Eye class="size-4 shrink-0" />
@@ -237,11 +268,28 @@
                this box only sets the height. It used to add a second border at a
                different radius around the one the calendar already draws. -->
           <div class="h-[30rem] lg:h-[36rem]">
+            <!-- Replacing the grid, not covering it: an empty week here carries
+                 no information the reader needs, and reads as availability it
+                 does not have. -->
+            <CalendarDisabledOverlay
+              v-if="hasNoMatchingTeachers"
+              :icon="UserX"
+              :message="noTeacherMessage"
+              :hint="noTeacherHint"
+            />
+            <!-- Browsing, businessHours is the union over every matching
+                 teacher, so an unshaded hour would only mean "somebody is
+                 free" -- and the blocks already say who, in the same place.
+                 The grid is shaded end to end instead, leaving the blocks as
+                 the only thing that reads as available. Once a teacher is
+                 picked the hours are one person's and the band means something
+                 per-teacher, so it comes back. -->
             <Calendar
+              v-else
               :model-value="calendarEvents"
               :additional-events="additionalEvents"
               :editable="calendarState === 'editable'"
-              :paint-business-hours="calendarState === 'editable'"
+              :backdrop="calendarState === 'editable' ? 'hours' : 'full'"
               :show-header="false"
               :business-hours="businessHours"
               constraint="businessHours"
@@ -302,6 +350,9 @@
             <template v-if="calendarState === 'editable'">
               {{ events.length }} slot{{ events.length === 1 ? '' : 's' }} selected
             </template>
+            <template v-else-if="hasNoMatchingTeachers"
+              >Nothing to book with these filters</template
+            >
             <template v-else>Select a teacher to start booking</template>
           </p>
           <Button :disabled="!canAddToBooking" @click="addToBooking">
