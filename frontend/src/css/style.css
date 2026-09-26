@@ -1,18 +1,20 @@
 /* Must stay first: `@import 'tailwindcss'` expands inline, so any @import after
  * it lands mid-stylesheet and gets dropped as an invalid late @import. */
-/* Self-hosted via @fontsource — same families/weights the Google Fonts URL used to
- * request, but pinned in package-lock.json and served from our own origin. */
-@import '@fontsource/inter/300.css';
+/* Self-hosted via @fontsource, pinned in package-lock.json and served from our
+ * own origin. Inter is the only family: `body` below is the single rule that
+ * sets font-family, nothing declares --font-sans/--font-mono, and no
+ * font-sans/font-mono/font-serif utility appears anywhere in src. JetBrains
+ * Mono and Instrument Sans were carried over wholesale from the old Google
+ * Fonts URL and never had a rule referencing them.
+ *
+ * The weights are the ones something actually asks for: 400/500/600 from the
+ * font-normal/medium/semibold utilities, and 700 for FullCalendar's theme
+ * (theme.css `font-weight: 700`), which without this renders as synthetic
+ * bold. There is no font-light in src, so 300 is not loaded. */
 @import '@fontsource/inter/400.css';
 @import '@fontsource/inter/500.css';
 @import '@fontsource/inter/600.css';
-@import '@fontsource/jetbrains-mono/400.css';
-@import '@fontsource/jetbrains-mono/500.css';
-@import '@fontsource/jetbrains-mono/600.css';
-@import '@fontsource/instrument-sans/400.css';
-@import '@fontsource/instrument-sans/500.css';
-@import '@fontsource/instrument-sans/600.css';
-@import '@fontsource/instrument-sans/700.css';
+@import '@fontsource/inter/700.css';
 /* FullCalendar v7 brings no styling of its own: skeleton is required, then a
  * theme and its palette. They load here, ahead of the bridge further down that
  * re-points the palette's variables at the Soft Sage tokens. Importing them
@@ -40,19 +42,84 @@
   --accent-mint: #a8c9b8;
 
   /* ---------------------------------------------------------------------
-   * Per-teacher tones for the read-only browse calendar.
+   * The categorical ramp: six hues, two steps each.
    *
-   * These are categorical data colours, not chrome, so they sit outside the
-   * 60/30/10 rule the same way a chart's series colours do. Every one carries
-   * dark text at 8:1 or better, and the closest pair is 31 degrees apart, so
-   * two teachers side by side never read as the same block.
+   * These are data colours, not chrome, so they sit outside the 60/30/10 rule
+   * the same way a chart's series colours do. The closest pair is 31 degrees
+   * apart, so two categories side by side never read as the same block.
+   *
+   *   --cat-N-fill   the recessive step. Carries dark text at 8:1 or better,
+   *                  but only ~1.5:1 against the card itself, so it cannot
+   *                  define a shape on its own.
+   *   --cat-N-edge   the readable step, 5.50-6.65:1 against the card. This is
+   *                  what gives a fill its boundary.
+   *   --cat-N-tint   the fill as it is actually painted: --cat-N-fill let down
+   *                  45% into the card. The block reads as a pastal wash with
+   *                  a firm edge instead of a solid colour chip, and the edge
+   *                  still separates from it at 4.30-5.32:1.
+   *
+   * The roles are what the names mean, not the lightness: the two steps swap
+   * in dark mode, and everything below follows because it is an alias.
    * ------------------------------------------------------------------- */
-  --teacher-1: #a8c9b8;
-  --teacher-2: #c9d4a3;
-  --teacher-3: #eed9a6;
-  --teacher-4: #efc4bb;
-  --teacher-5: #b6ccdc;
-  --teacher-6: #cdc2db;
+  --cat-1-fill: #a8c9b8;
+  --cat-2-fill: #c9d4a3;
+  --cat-3-fill: #eed9a6;
+  --cat-4-fill: #efc4bb;
+  --cat-5-fill: #b6ccdc;
+  --cat-6-fill: #cdc2db;
+
+  --cat-1-edge: #4f7060;
+  --cat-2-edge: #616d44;
+  --cat-3-edge: #7a6535;
+  --cat-4-edge: #7d564e;
+  --cat-5-edge: #4d647a;
+  --cat-6-edge: #635777;
+
+  --cat-1-tint: #d8e7df;
+  --cat-2-tint: #e7ecd6;
+  --cat-3-tint: #f7eed7;
+  --cat-4-tint: #f8e4e0;
+  --cat-5-tint: #dee8ef;
+  --cat-6-tint: #e9e4ef;
+
+  /* Browse-calendar blocks, one tone per teacher: filled block, edge ring. */
+  --teacher-1: var(--cat-1-fill);
+  --teacher-2: var(--cat-2-fill);
+  --teacher-3: var(--cat-3-fill);
+  --teacher-4: var(--cat-4-fill);
+  --teacher-5: var(--cat-5-fill);
+  --teacher-6: var(--cat-6-fill);
+  --teacher-1-strong: var(--cat-1-edge);
+  --teacher-2-strong: var(--cat-2-edge);
+  --teacher-3-strong: var(--cat-3-edge);
+  --teacher-4-strong: var(--cat-4-edge);
+  --teacher-5-strong: var(--cat-5-edge);
+  --teacher-6-strong: var(--cat-6-edge);
+  --teacher-1-tint: var(--cat-1-tint);
+  --teacher-2-tint: var(--cat-2-tint);
+  --teacher-3-tint: var(--cat-3-tint);
+  --teacher-4-tint: var(--cat-4-tint);
+  --teacher-5-tint: var(--cat-5-tint);
+  --teacher-6-tint: var(--cat-6-tint);
+
+  /* Roster subject dots. Same two steps, same way round: --subject-N is the
+   * ring that makes the dot visible, --subject-N-soft is the pastel inside.
+   *
+   * Sharing the ramp with the teacher tones is safe because the two never
+   * share a screen: teacher tones only appear on the browse calendar, subject
+   * dots only on the roster. */
+  --subject-1: var(--cat-1-edge);
+  --subject-2: var(--cat-2-edge);
+  --subject-3: var(--cat-3-edge);
+  --subject-4: var(--cat-4-edge);
+  --subject-5: var(--cat-5-edge);
+  --subject-6: var(--cat-6-edge);
+  --subject-1-soft: var(--cat-1-fill);
+  --subject-2-soft: var(--cat-2-fill);
+  --subject-3-soft: var(--cat-3-fill);
+  --subject-4-soft: var(--cat-4-fill);
+  --subject-5-soft: var(--cat-5-fill);
+  --subject-6-soft: var(--cat-6-fill);
 
   /* The 10% accent of the 60/30/10 split: 60% cream/card surface, 30% deep
    * sage, 10% amber. It is the only colour allowed to pull the eye in chrome
@@ -68,6 +135,9 @@
    * UI; this one is 3.75:1. Never use it as a fill under dark ink (3.82:1). */
   --accent-amber-strong: #a87d0e;
   --accent-amber-soft: color-mix(in srgb, #e0a42c 15%, transparent);
+  /* Opaque counterpart of -soft, for a cart block that has to sit on the
+   * calendar grid without the lines showing through it. */
+  --accent-amber-tint: #f8ebd1;
   --on-amber: #1a2e28;
 
   --text-primary: #1a2e28;
@@ -213,12 +283,26 @@
   --primary-navy-deep: #b3c6b6;
   --accent-sage: #7d9a84;
   --accent-sage-deep: #8fae96;
-  --teacher-1: #4f7060;
-  --teacher-2: #616d44;
-  --teacher-3: #7a6535;
-  --teacher-4: #7d564e;
-  --teacher-5: #4d647a;
-  --teacher-6: #635777;
+  --cat-1-fill: #4f7060;
+  --cat-2-fill: #616d44;
+  --cat-3-fill: #7a6535;
+  --cat-4-fill: #7d564e;
+  --cat-5-fill: #4d647a;
+  --cat-6-fill: #635777;
+
+  --cat-1-edge: #a8c9b8;
+  --cat-2-edge: #c9d4a3;
+  --cat-3-edge: #eed9a6;
+  --cat-4-edge: #efc4bb;
+  --cat-5-edge: #b6ccdc;
+  --cat-6-edge: #cdc2db;
+
+  --cat-1-tint: #324c41;
+  --cat-2-tint: #3a4a35;
+  --cat-3-tint: #45472e;
+  --cat-4-tint: #474039;
+  --cat-5-tint: #31464d;
+  --cat-6-tint: #3b404c;
   --accent-mint: #6f9384;
 
   --text-primary: #e8efe9;
@@ -238,7 +322,8 @@
   --accent-amber-light: #e3bd76;
   --accent-amber-strong: #e3bd76;
   --accent-amber-soft: color-mix(in srgb, #d9a851 18%, transparent);
-  --on-amber: #12201b;
+  --accent-amber-tint: #4f5033;
+  --on-amber: #e8efe9;
 
   --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.28);
   --shadow-elevated: 0 4px 20px rgba(0, 0, 0, 0.5), 0 12px 40px rgba(0, 0, 0, 0.35);
@@ -392,14 +477,61 @@ body {
 /* ---------------------------------------------------------------------------
  * Our own event classes.
  *
- * Colour is NOT set here. v7 writes --fc-event-color and
- * --fc-event-contrast-color inline on the element from the event's own `color`
- * and `contrastColor` fields, and inline always beats a class rule -- setting
- * them here produced white text on a pale fill. These rules are only for what
- * the two colour fields cannot express.
+ * The fill and the label colour are NOT set here. v7 writes --fc-event-color
+ * and --fc-event-contrast-color inline on the element from the event's own
+ * `color` and `contrastColor` fields, and an inline variable beats the value a
+ * class rule would give it -- setting them here produced white text on a pale
+ * fill. These rules are for what those two fields cannot express.
  * ------------------------------------------------------------------------- */
 .browse-event {
   cursor: pointer;
+}
+
+/* The event's border is the one thing the colour fields cannot reach: the
+ * theme paints border-color and background-color from the same
+ * --fc-event-color, so every block came out as a flat fill with an invisible
+ * border. Overriding border-color here gives the block the same shape the
+ * roster's subject dots have -- recessive fill, readable edge.
+ *
+ * This is a plain class rule against the theme's own plain class rule, and
+ * this stylesheet is imported after the theme, so it wins on order. It does
+ * not fight the inline variable, which only sets --fc-event-color itself. */
+.browse-tone-1 {
+  border-color: var(--teacher-1-strong);
+}
+.browse-tone-2 {
+  border-color: var(--teacher-2-strong);
+}
+.browse-tone-3 {
+  border-color: var(--teacher-3-strong);
+}
+.browse-tone-4 {
+  border-color: var(--teacher-4-strong);
+}
+.browse-tone-5 {
+  border-color: var(--teacher-5-strong);
+}
+.browse-tone-6 {
+  border-color: var(--teacher-6-strong);
+}
+
+/* A block several teachers share takes no tone, so it gets a neutral edge.
+ * --border-strong was the obvious pick and is wrong: it is 2.22:1 against the
+ * card, so the edge it draws is not actually visible. --neutral-600 is the
+ * muted-text step and clears 4.5:1. */
+.browse-tone-shared {
+  border-color: var(--neutral-600);
+}
+
+/* The other two event kinds, so the whole grid reads the same way: pastel wash,
+ * firm edge. Neither had a rule at all, which is why they stayed flat while the
+ * browse blocks gained an outline. */
+.booked-event {
+  border-color: var(--neutral-600);
+}
+
+.cart-event {
+  border-color: var(--accent-amber-strong);
 }
 
 /* A teacher is travelling between branches: the slot reads as unavailable

@@ -10,6 +10,7 @@ import {
   sortEntriesForDisplay,
   subjectsFromBookings,
 } from '../utils/roster'
+import { buildSubjectTones, type SubjectToneMap } from '../utils/subjectColor'
 import type { AuthUser, Booking, Subject, Teacher } from '../types'
 import type { RosterEntry, RosterMode } from '../utils/roster'
 
@@ -121,6 +122,11 @@ export function useAdminRoster() {
     allEntries.value.filter((entry) => matchesSearch(entry, search.value))
   )
 
+  // Built from the canonical subject list rather than from the names that turn
+  // up in bookings, so a subject keeps its tone even in a card where it is not
+  // booked at all.
+  const subjectTones = computed<SubjectToneMap>(() => buildSubjectTones(subjects.value))
+
   const counts = computed<RosterCounts>(() => ({
     teachers: teachers.value.length,
     students: students.value.length,
@@ -134,6 +140,7 @@ export function useAdminRoster() {
     entries,
     allEntries,
     counts,
+    subjectTones,
     isLoading,
     loadError,
     load,

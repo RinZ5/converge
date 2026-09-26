@@ -53,7 +53,30 @@ const PAIRS: [string, string, string, number][] = [
   ['amber fill ink (never white)', 'on-amber', 'accent-amber', 4.5],
   // The calendar paints white on the default event colour.
   ['calendar event label', 'on-accent', 'accent-sage-deep', 4.5],
+  // Calendar blocks are painted as a tint with an edge. Two things matter: the
+  // label has to read on the tint, and the edge has to separate the block from
+  // the card. Both are easy to lose by nudging one step of the ramp.
+  ['browse block label 1', 'text-primary', 'cat-1-tint', 4.5],
+  ['browse block label 2', 'text-primary', 'cat-2-tint', 4.5],
+  ['browse block label 3', 'text-primary', 'cat-3-tint', 4.5],
+  ['browse block label 4', 'text-primary', 'cat-4-tint', 4.5],
+  ['browse block label 5', 'text-primary', 'cat-5-tint', 4.5],
+  ['browse block label 6', 'text-primary', 'cat-6-tint', 4.5],
+  ['cart block label', 'on-amber', 'accent-amber-tint', 4.5],
+  ['cart block edge', 'accent-amber-strong', 'bg-card', 3],
+  ['booked block label', 'text-primary', 'bg-subtle', 4.5],
+  // Shared and booked blocks both take the neutral edge. --border-strong was
+  // the first choice and only reaches 2.22:1, which is what this pair catches.
+  ['neutral block edge', 'neutral-600', 'bg-card', 3],
   // Per-teacher browse tones: categorical, and all carry the dark label.
+  // The -strong step is the block's border, which is the only thing separating
+  // one block from the card behind it, so it answers to 1.4.11's 3:1.
+  ['browse block edge 1', 'teacher-1-strong', 'bg-card', 3],
+  ['browse block edge 2', 'teacher-2-strong', 'bg-card', 3],
+  ['browse block edge 3', 'teacher-3-strong', 'bg-card', 3],
+  ['browse block edge 4', 'teacher-4-strong', 'bg-card', 3],
+  ['browse block edge 5', 'teacher-5-strong', 'bg-card', 3],
+  ['browse block edge 6', 'teacher-6-strong', 'bg-card', 3],
   ['teacher tone 1', 'text-primary', 'teacher-1', 4.5],
   ['teacher tone 2', 'text-primary', 'teacher-2', 4.5],
   ['teacher tone 3', 'text-primary', 'teacher-3', 4.5],
@@ -64,6 +87,16 @@ const PAIRS: [string, string, string, number][] = [
   ['success text on its surface', 'success-text', 'success-surface', 4.5],
   ['warning text on its surface', 'warning-text', 'warning-surface', 4.5],
   ['danger text on its surface', 'danger-text', 'danger-surface', 4.5],
+  // Subject dots on the roster: marks on the card, so 1.4.11's 3:1, not 4.5.
+  // The pair tested is the dot's *ring*, not its pastel fill -- the fill is the
+  // teacher-tone step above and sits at ~1.5:1, so the ring is the only thing
+  // defining the dot's boundary. Drop the ring and the dot stops being visible.
+  ['subject dot 1', 'subject-1', 'bg-card', 3],
+  ['subject dot 2', 'subject-2', 'bg-card', 3],
+  ['subject dot 3', 'subject-3', 'bg-card', 3],
+  ['subject dot 4', 'subject-4', 'bg-card', 3],
+  ['subject dot 5', 'subject-5', 'bg-card', 3],
+  ['subject dot 6', 'subject-6', 'bg-card', 3],
   ['status dot: active', 'success', 'bg-card', 3],
   ['status dot: deactivated', 'danger', 'bg-card', 3],
   ['warning as UI element', 'warning', 'bg-card', 3],
