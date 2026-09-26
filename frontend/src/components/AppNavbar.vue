@@ -4,6 +4,7 @@
   import { ChevronLeft, ShoppingCart } from '@lucide/vue'
   import { useCart } from '../composables/useCart'
   import { useAuthStore } from '../stores/authStore'
+  import { homeFor } from '../router/guard'
   import { Badge } from '@/components/ui/badge'
   import { Button } from '@/components/ui/button'
 
@@ -31,7 +32,14 @@
   const handleLogout = () => {
     auth.logout()
     loadCart()
-    router.replace('/login')
+    // homeFor(null) is '/', the public browse page -- the guard's own answer to
+    // "where does someone with no role belong". Signing out is a choice to stop
+    // being logged in, not a request to log in again, and hardcoding /login
+    // here contradicted the rule the router already enforces everywhere else.
+    //
+    // Expiry is the other case and is handled separately in router/index.ts: it
+    // does go to /login, carrying ?redirect so the interrupted task resumes.
+    router.replace(homeFor(auth.role))
   }
 
   onMounted(loadCart)

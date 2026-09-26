@@ -3,9 +3,8 @@
   import Calendar from '../components/Calendar.vue'
   import CalendarDisabledOverlay from '../components/CalendarDisabledOverlay.vue'
   import { computed } from 'vue'
-  import { Loader2 } from '@lucide/vue'
+  import { Loader2, TriangleAlert } from '@lucide/vue'
   import { Button } from '@/components/ui/button'
-  import { Card, CardContent } from '@/components/ui/card'
   import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
   import { Label } from '@/components/ui/label'
   import {
@@ -71,6 +70,7 @@
         <Button :disabled="isLoading" :aria-busy="isLoading" @click="handleSubmit">
           <Loader2 v-if="isLoading" class="animate-spin" />
           Submit availability
+          <span v-if="events.length" class="tabular-nums opacity-80">({{ events.length }})</span>
         </Button>
       </div>
 
@@ -78,24 +78,41 @@
         Select a teacher first.
       </p>
 
-      <Card class="overflow-hidden">
-        <CardContent class="px-0">
-          <div class="h-[30rem] lg:h-[40rem]">
-            <Calendar
-              v-if="selectedTeacherId"
-              v-model="events"
-              :editable="true"
-              :show-header="false"
-              class="h-full"
-            />
-            <CalendarDisabledOverlay v-else message="Select a teacher first" />
-          </div>
-        </CardContent>
-      </Card>
+      <!-- Above the calendar, not under it: this says what the page is about to
+           do to data that already exists, so it has to be read before the
+           drawing starts. It was a muted footnote below the calendar. -->
+      <div
+        v-if="selectedTeacherId"
+        class="border-warning-border bg-warning-surface text-warning-text flex items-start gap-2 rounded-md border px-3 py-2 text-xs"
+      >
+        <TriangleAlert class="mt-px size-4 shrink-0" />
+        <span>
+          Drag on the calendar to add a slot. Submitting replaces
+          <strong class="font-medium">{{ selectedTeacher?.name }}</strong
+          >'s whole week, including any slot not drawn here.
+        </span>
+      </div>
 
-      <p class="text-muted-foreground px-1 text-xs">
-        Drag on the calendar to add a slot. Submitting replaces the teacher's whole week.
-      </p>
+      <!-- No Card wrapper: Calendar already paints its own card surface (bg,
+           border, rounded-2xl, shadow). Nesting it in one gave two borders at
+           two different radii, and Card's py-6/px-0 split inset the calendar
+           24px top and bottom while leaving it flush left and right.
+           Same height as the booking calendar so an hour is the same size in
+           both places. -->
+      <div class="h-[30rem] lg:h-[36rem]">
+        <Calendar
+          v-if="selectedTeacherId"
+          v-model="events"
+          :editable="true"
+          :show-header="false"
+          class="h-full"
+        />
+        <CalendarDisabledOverlay
+          v-else
+          message="Select a teacher first"
+          hint="Then drag on the calendar to mark the hours they are free to teach."
+        />
+      </div>
     </div>
 
     <Dialog v-model:open="showConfirm">

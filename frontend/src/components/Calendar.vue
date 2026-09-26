@@ -1,6 +1,6 @@
 <script setup lang="ts">
   import { ref, computed } from 'vue'
-  import { Trash2, X } from '@lucide/vue'
+  import { ChevronLeft, ChevronRight, Trash2, X } from '@lucide/vue'
   import FullCalendar from '@fullcalendar/vue3'
   import { Button } from '@/components/ui/button'
   import timeGridPlugin from '@fullcalendar/vue3/timegrid'
@@ -26,6 +26,10 @@
     businessHours?: BusinessHoursInput
     constraint?: string
     modelValue?: EventInput[]
+    /** Paint the business-hours band. Off by default: the band is drawn across
+     *  the full column width, so it only tells the truth when the hours belong
+     *  to one person, or when nothing else on the grid shows availability. */
+    paintBusinessHours?: boolean
     additionalEvents?: EventInput[]
 
     showHeader?: boolean
@@ -36,6 +40,7 @@
     businessHours: undefined,
     constraint: undefined,
     modelValue: () => [],
+    paintBusinessHours: false,
     additionalEvents: () => [],
     showHeader: true,
   })
@@ -55,6 +60,17 @@
 
   const { isMobile, dayHeaderFormat, initialView, longPressDelay } =
     useCalendarResponsive(calendarRef)
+
+  // The toolbar is ours, not FullCalendar's. The classic theme renders the
+  // title at 24px/700 -- page-heading size for the label on a prev/next
+  // control -- and its buttons are solid filled blocks styled through twelve
+  // hashed class names, so buttonClass can only be replaced wholesale, never
+  // adjusted. Driving the calendar through its API instead gives the same
+  // Button component the rest of the app uses.
+  const viewTitle = ref('')
+
+  const goPrev = () => calendarRef.value?.getApi().prev()
+  const goNext = () => calendarRef.value?.getApi().next()
 
   const { handleDayHeaderDidMount } = useBusinessHoursHeaders(
     calendarRef,
@@ -170,9 +186,7 @@
   const calendarOptions = computed(() => ({
     plugins: [themePlugin, timeGridPlugin, interactionPlugin],
     ...CALENDAR_DEFAULT_OPTIONS,
-    headerToolbar: props.showHeader
-      ? ({ left: 'prev', center: 'title', right: 'next' } as const)
-      : (false as const),
+    headerToolbar: false as const,
     initialView: initialView.value,
     editable: props.editable,
     selectable: props.editable,
@@ -181,15 +195,13 @@
     displayEventTime: false,
     eventDidMount: handleEventDidMount,
     eventWillUnmount: handleEventWillUnmount,
-    // Painting business hours is only honest when the hours belong to one
-    // person. While browsing, props.businessHours is the union across every
-    // teacher shown, and FullCalendar paints it across the full column width
-    // while the blocks sit in half-width lanes -- so the white "open" band
-    // shows through beside a lane that has nothing in it. The blocks already
-    // say who is free when; the band only contradicts them.
+    // Whether to paint is the caller's call, not something inferred here. It
+    // was tied to `editable`, which is right for the booking calendar and wrong
+    // for the guest page: there the band is the only thing showing availability
+    // at all, so keying off `editable` blanked the page.
     //
-    // The prop is still passed: useBusinessHoursHeaders and isWithinConstraint
-    // read it directly, and selection is disabled while not editable anyway.
+    // The prop is still read regardless: useBusinessHoursHeaders and
+    // isWithinConstraint use it directly, whatever gets painted.
     //
     // An empty array, not `undefined` and not `false`. undefined reads as
     // "option not given" and the calendar keeps whatever was set last, which
@@ -198,7 +210,9 @@
     // normally carries; an empty array is the same shape and means the same
     // thing -- no business ranges, so FullCalendar shades the whole day as
     // non-business.
-    businessHours: props.editable ? (props.businessHours ?? NO_BUSINESS_HOURS) : NO_BUSINESS_HOURS,
+    businessHours: props.paintBusinessHours
+      ? (props.businessHours ?? NO_BUSINESS_HOURS)
+      : NO_BUSINESS_HOURS,
     eventConstraint: props.constraint,
     selectConstraint: props.constraint,
     selectAllow: handleSelectAllow,
@@ -208,7 +222,10 @@
     eventClick: handleEventClick,
     eventDrop: handleEventDrop,
     eventResize: handleEventResize,
-    datesSet: (arg: DatesSetInfo) => emit('dates-set', { start: arg.start, end: arg.end }),
+    datesSet: (arg: DatesSetInfo) => {
+      viewTitle.value = arg.view.title
+      emit('dates-set', { start: arg.start, end: arg.end })
+    },
     dayHeaderFormat: dayHeaderFormat.value,
     longPressDelay: longPressDelay.value,
     eventLongPressDelay: longPressDelay.value,
@@ -227,62 +244,79 @@
 
 <template>
   <div
-    class="calendar-container bg-card border-border h-full overflow-x-hidden overflow-y-auto rounded-2xl border tabular-nums shadow-[var(--shadow-card)] [-webkit-tap-highlight-color:transparent] **:[-webkit-tap-highlight-color:transparent] md:overflow-y-hidden"
+    class="calendar-container bg-card border-border flex h-full flex-col overflow-x-hidden overflow-y-auto rounded-2xl border tabular-nums shadow-[var(--shadow-card)] [-webkit-tap-highlight-color:transparent] **:[-webkit-tap-highlight-color:transparent] md:overflow-y-hidden"
     @click="handleContainerClick"
   >
-    <FullCalendar ref="calendarRef" :options="calendarOptions">
-      <!-- Rendered as a slot rather than an HTML string built in script: Vue
+    <div
+      v-if="showHeader"
+      class="border-border flex shrink-0 items-center justify-between gap-2 border-b px-3 py-2"
+    >
+      <Button variant="outline" size="icon-sm" aria-label="Previous" @click="goPrev">
+        <ChevronLeft />
+      </Button>
+      <span class="text-sm font-medium">{{ viewTitle }}</span>
+      <Button variant="outline" size="icon-sm" aria-label="Next" @click="goNext">
+        <ChevronRight />
+      </Button>
+    </div>
+
+    <!-- min-h-0 so this can actually shrink inside the flex column; the
+         calendar asks for height 100% of it. -->
+    <div class="min-h-0 flex-1">
+      <FullCalendar ref="calendarRef" :options="calendarOptions">
+        <!-- Rendered as a slot rather than an HTML string built in script: Vue
            escapes the teacher name for us (the old path hand-rolled escapeHtml),
            and the classes live here, so Tailwind reaches them and the matching
            :deep() rules are no longer needed. The event-delete-btn class stays
            because useCalendarInteraction finds the button with closest(). -->
-      <template #eventContent="arg">
-        <!-- Centred, like the booked blocks. Pinned to the top-left the label
+        <template #eventContent="arg">
+          <!-- Centred, like the booked blocks. Pinned to the top-left the label
              floated in the corner of a tall block with nothing to balance it,
              which read as a rendering slip rather than a choice. -->
-        <div
-          v-if="arg.event.extendedProps?.isBrowse"
-          class="flex h-full w-full max-w-full flex-col items-center justify-center gap-px overflow-hidden text-center"
-        >
-          <span class="text-2xs truncate leading-tight font-semibold">
-            {{ arg.event.extendedProps.browseLabel }}
-          </span>
-          <span
-            v-if="showsBrowseTime(arg.event.start, arg.event.end)"
-            class="truncate text-[0.625rem] leading-tight opacity-75"
+          <div
+            v-if="arg.event.extendedProps?.isBrowse"
+            class="flex h-full w-full max-w-full flex-col items-center justify-center gap-px overflow-hidden text-center"
           >
-            {{ formatTimeRange(arg.event.start, arg.event.end) }}
-          </span>
-        </div>
+            <span class="text-2xs truncate leading-tight font-semibold">
+              {{ arg.event.extendedProps.browseLabel }}
+            </span>
+            <span
+              v-if="showsBrowseTime(arg.event.start, arg.event.end)"
+              class="truncate text-[0.625rem] leading-tight opacity-75"
+            >
+              {{ formatTimeRange(arg.event.start, arg.event.end) }}
+            </span>
+          </div>
 
-        <div
-          v-else-if="arg.event.extendedProps?.isBooked"
-          class="flex h-full max-w-full items-center justify-center"
-        >
-          <span class="truncate text-xs font-medium">{{ arg.event.title || 'Booked' }}</span>
-        </div>
-
-        <div v-else class="group relative h-full max-w-full">
-          <span class="block max-w-full truncate">
-            {{
-              arg.event.start && arg.event.end
-                ? formatTimeRange(arg.event.start, arg.event.end)
-                : ''
-            }}
-          </span>
-
-          <button
-            v-if="canRemove(arg.event.extendedProps)"
-            type="button"
-            class="event-delete-btn text-danger hover:bg-card focus-visible:ring-ring absolute top-0.5 right-0.5 flex size-[18px] items-center justify-center rounded-full border-none bg-[color-mix(in_srgb,var(--bg-card)_90%,transparent)] p-0 opacity-0 transition-[opacity,transform] group-hover:opacity-100 hover:scale-110 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:outline-none max-[767px]:size-[22px] max-[767px]:opacity-100"
-            aria-label="Remove this time slot"
-            title="Remove this time slot"
+          <div
+            v-else-if="arg.event.extendedProps?.isBooked"
+            class="flex h-full max-w-full items-center justify-center"
           >
-            <X class="size-[11px] max-[767px]:size-[13px]" :stroke-width="2.5" />
-          </button>
-        </div>
-      </template>
-    </FullCalendar>
+            <span class="truncate text-xs font-medium">{{ arg.event.title || 'Booked' }}</span>
+          </div>
+
+          <div v-else class="group relative h-full max-w-full">
+            <span class="block max-w-full truncate">
+              {{
+                arg.event.start && arg.event.end
+                  ? formatTimeRange(arg.event.start, arg.event.end)
+                  : ''
+              }}
+            </span>
+
+            <button
+              v-if="canRemove(arg.event.extendedProps)"
+              type="button"
+              class="event-delete-btn text-danger hover:bg-card focus-visible:ring-ring absolute top-0.5 right-0.5 flex size-[18px] items-center justify-center rounded-full border-none bg-[color-mix(in_srgb,var(--bg-card)_90%,transparent)] p-0 opacity-0 transition-[opacity,transform] group-hover:opacity-100 hover:scale-110 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:outline-none max-[767px]:size-[22px] max-[767px]:opacity-100"
+              aria-label="Remove this time slot"
+              title="Remove this time slot"
+            >
+              <X class="size-[11px] max-[767px]:size-[13px]" :stroke-width="2.5" />
+            </button>
+          </div>
+        </template>
+      </FullCalendar>
+    </div>
     <Transition
       enter-active-class="transition-opacity duration-200"
       enter-from-class="opacity-0"
