@@ -28,8 +28,11 @@ const MIN_REMAINDER_MS = 30 * 60 * 1000
 // the list, so a teacher keeps their colour as the list is filtered.
 const TEACHER_TONES = 6
 
-const toneFor = (teacherId: number): string =>
-  `var(--teacher-${(Math.abs(teacherId) % TEACHER_TONES) + 1})`
+const toneIndexFor = (teacherId: number): number => (Math.abs(teacherId) % TEACHER_TONES) + 1
+
+// The tint, not the full tone: the block is a pastel wash and the tone class
+// supplies the edge. Painting --teacher-N here gave a solid chip.
+const toneFor = (teacherId: number): string => `var(--teacher-${toneIndexFor(teacherId)}-tint)`
 
 const normalizeTime = (value: string): string => {
   const [hours = '', minutes = '00'] = value.split(':')
@@ -131,6 +134,8 @@ export function useBrowseEvents(getRange: () => VisibleRange | null) {
       const label =
         group.teachers.length === 1 ? group.teachers[0].name : `${group.teachers.length} teachers`
 
+      const solo = group.teachers.length === 1 ? group.teachers[0] : null
+
       return {
         id: `browse-${group.start.getTime()}-${group.end.getTime()}`,
         title: label,
@@ -139,9 +144,13 @@ export function useBrowseEvents(getRange: () => VisibleRange | null) {
         editable: false,
         // A block shared by several teachers gets a neutral: no one tone can
         // stand for all of them, and the label already says how many.
-        color: group.teachers.length === 1 ? toneFor(group.teachers[0].id) : 'var(--border-medium)',
+        color: solo ? toneFor(solo.id) : 'var(--bg-subtle)',
         contrastColor: 'var(--text-primary)',
-        className: 'browse-event',
+        // The tone class carries the block's edge. `color` above can only set
+        // one value, and the theme paints the fill and the border from it, so
+        // the darker edge has to come from a class. v7 takes a string here,
+        // not an array.
+        className: `browse-event browse-tone-${solo ? toneIndexFor(solo.id) : 'shared'}`,
         extendedProps: {
           isBrowse: true,
           browseLabel: label,

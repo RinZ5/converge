@@ -197,7 +197,7 @@
 
 <template>
   <div
-    class="calendar-container bg-card border-border h-full overflow-x-hidden overflow-y-auto rounded-2xl border shadow-[var(--shadow-card)] [-webkit-tap-highlight-color:transparent] **:[-webkit-tap-highlight-color:transparent] md:overflow-y-hidden"
+    class="calendar-container bg-card border-border h-full overflow-x-hidden overflow-y-auto rounded-2xl border tabular-nums shadow-[var(--shadow-card)] [-webkit-tap-highlight-color:transparent] **:[-webkit-tap-highlight-color:transparent] md:overflow-y-hidden"
     @click="handleContainerClick"
   >
     <FullCalendar ref="calendarRef" :options="calendarOptions">

@@ -121,8 +121,11 @@ export const useBookingStore = defineStore('booking', () => {
       start: startDate.toISOString(),
       end: endDate.toISOString(),
       editable: false,
-      color: 'var(--primary-navy)',
-      contrastColor: 'var(--on-accent)',
+      // Amber is the 10% accent, already what the cart badge uses, so a
+      // pending block is the one thing on the grid that is neither a teacher
+      // tone nor neutral. Painted as a tint with an amber edge like the rest.
+      color: 'var(--accent-amber-tint)',
+      contrastColor: 'var(--on-amber)',
       className: 'cart-event',
       extendedProps: {
         isCartItem: true,
@@ -142,7 +145,7 @@ export const useBookingStore = defineStore('booking', () => {
       start: startDate.toISOString(),
       end: endDate.toISOString(),
       editable: false,
-      color: 'var(--border-medium)',
+      color: 'var(--bg-subtle)',
       contrastColor: 'var(--text-primary)',
       className: 'booked-event',
       extendedProps: {

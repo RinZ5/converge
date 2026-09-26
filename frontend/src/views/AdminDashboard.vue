@@ -8,11 +8,28 @@
     type RosterMode,
     type RosterStatus,
   } from '../composables/useAdminRoster'
+  import { subjectTone, subjectToneSoftVar, subjectToneVar } from '../utils/subjectColor'
   import { Badge } from '@/components/ui/badge'
   import { Button } from '@/components/ui/button'
   import { Card, CardContent } from '@/components/ui/card'
 
-  const { mode, search, entries, allEntries, counts, isLoading, loadError, load } = useAdminRoster()
+  const { mode, search, entries, allEntries, counts, subjectTones, isLoading, loadError, load } =
+    useAdminRoster()
+
+  // One colour per subject, used everywhere a subject name is rendered on this
+  // page so the dot reads as the same language in all three places. Returns
+  // undefined for an unknown name, which renders no dot rather than a
+  // meaningless one.
+  //
+  // Two steps: the pastel fill and the deeper ring that gives it an edge. A
+  // bare pastel dot is ~1.5:1 against the card and all but disappears.
+  const dotStyle = (subject: string): Record<string, string> | undefined => {
+    const tone = subjectTone(subjectTones.value, subject)
+    const fill = subjectToneSoftVar(tone)
+    const ring = subjectToneVar(tone)
+    if (!fill || !ring) return undefined
+    return { backgroundColor: fill, borderColor: ring }
+  }
 
   const MODES: { value: RosterMode; label: string }[] = [
     { value: 'teachers', label: 'Teachers' },
@@ -233,8 +250,14 @@
                       v-for="subject in entry.subjects"
                       :key="subject"
                       variant="secondary"
-                      class="font-normal"
+                      class="gap-1.5 font-normal"
                     >
+                      <span
+                        v-if="dotStyle(subject)"
+                        class="size-2 shrink-0 rounded-full border"
+                        :style="dotStyle(subject)"
+                        aria-hidden="true"
+                      />
                       {{ subject }}
                     </Badge>
                   </span>
@@ -281,8 +304,14 @@
                         v-for="subject in person.subjects"
                         :key="subject"
                         variant="outline"
-                        class="font-normal"
+                        class="gap-1.5 font-normal"
                       >
+                        <span
+                          v-if="dotStyle(subject)"
+                          class="size-2 shrink-0 rounded-full border"
+                          :style="dotStyle(subject)"
+                          aria-hidden="true"
+                        />
                         {{ subject }}
                       </Badge>
                       <span class="text-muted-foreground ml-auto text-xs tabular-nums">
@@ -291,11 +320,18 @@
                       </span>
                     </div>
 
-                    <ul class="flex flex-col gap-1 pl-5.5">
+                    <!-- Aligned columns from sm up: the branch name varies in
+                         width, so a plain flex row left the subject starting at
+                         a different x on every line and the eye could not scan
+                         down. subgrid makes every session share the parent's
+                         three tracks. Narrow screens keep the wrapping row. -->
+                    <ul
+                      class="flex flex-col gap-1 pl-5.5 sm:grid sm:grid-cols-[max-content_max-content_max-content] sm:justify-start sm:gap-x-4"
+                    >
                       <li
                         v-for="session in person.sessions"
                         :key="session.id"
-                        class="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs"
+                        class="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs sm:col-span-full sm:grid sm:grid-cols-subgrid sm:gap-x-4"
                         :class="
                           isPast(session.endTime) ? 'text-muted-foreground/60' : 'text-foreground'
                         "
@@ -307,7 +343,13 @@
                           <MapPin class="size-3" />
                           {{ session.branch }}
                         </span>
-                        <span v-if="person.subjects.length > 1" class="text-muted-foreground">
+                        <span class="text-muted-foreground flex items-center gap-1.5">
+                          <span
+                            v-if="dotStyle(session.subject)"
+                            class="size-2 shrink-0 rounded-full border"
+                            :style="dotStyle(session.subject)"
+                            aria-hidden="true"
+                          />
                           {{ session.subject }}
                         </span>
                       </li>

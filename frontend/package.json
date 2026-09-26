@@ -16,12 +16,11 @@
     "check:roster": "node --experimental-strip-types scripts/check-admin-roster.ts",
     "check:notify": "node --experimental-strip-types scripts/check-notification-timeout.ts",
     "check:contrast": "node --experimental-strip-types scripts/check-contrast.ts",
-    "check:score": "node --experimental-strip-types scripts/check-score-color.ts"
+    "check:score": "node --experimental-strip-types scripts/check-score-color.ts",
+    "check:color": "node --experimental-strip-types scripts/check-subject-color.ts"
   },
   "dependencies": {
-    "@fontsource/instrument-sans": "^5.3.0",
     "@fontsource/inter": "^5.3.0",
-    "@fontsource/jetbrains-mono": "^5.3.0",
     "@fullcalendar/vue3": "^7.1.0",
     "@lucide/vue": "^1.32.0",
     "@vueuse/core": "^14.4.0",
