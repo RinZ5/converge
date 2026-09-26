@@ -181,6 +181,8 @@ func main() {
 	admin.POST("/teachers", availHandler.CreateTeacher)
 	admin.PATCH("/teachers/:id/status", availHandler.UpdateTeacherStatus)
 	admin.PATCH("/teachers/:id/gender", availHandler.UpdateTeacherGender)
+	admin.GET("/teachers/:id/subjects", availHandler.GetTeacherSubjects)
+	admin.PUT("/teachers/:id/subjects", availHandler.UpdateTeacherSubjects)
 	admin.GET("/branches", branchHandler.GetBranches)
 	admin.POST("/branches", branchHandler.CreateBranch)
 	admin.PATCH("/branches/:id/capacity", branchHandler.UpdateBranchCapacity)

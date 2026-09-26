@@ -3,7 +3,7 @@ import { storeToRefs } from 'pinia'
 import { useBookingStore } from '../stores/bookingStore'
 import { useCartStore } from '../stores/cartStore'
 import { subtractSpans, type Span } from '../utils/intervals'
-import type { EventInput } from '@fullcalendar/core'
+import type { EventInput } from '@fullcalendar/vue3'
 
 export interface BrowseTeacher {
   id: number
@@ -21,11 +21,15 @@ export interface VisibleRange {
   end: Date
 }
 
-const BROWSE_BACKGROUND = 'rgba(45, 74, 62, 0.10)'
-const BROWSE_BORDER = 'var(--primary-indigo)'
-const BROWSE_TEXT = 'var(--primary-indigo)'
-
 const MIN_REMAINDER_MS = 30 * 60 * 1000
+
+// Every teacher's free time used to be the same colour, so telling two of them
+// apart meant reading the label. Keyed off the id rather than the position in
+// the list, so a teacher keeps their colour as the list is filtered.
+const TEACHER_TONES = 6
+
+const toneFor = (teacherId: number): string =>
+  `var(--teacher-${(Math.abs(teacherId) % TEACHER_TONES) + 1})`
 
 const normalizeTime = (value: string): string => {
   const [hours = '', minutes = '00'] = value.split(':')
@@ -133,10 +137,11 @@ export function useBrowseEvents(getRange: () => VisibleRange | null) {
         start: group.start.toISOString(),
         end: group.end.toISOString(),
         editable: false,
-        backgroundColor: BROWSE_BACKGROUND,
-        borderColor: BROWSE_BORDER,
-        textColor: BROWSE_TEXT,
-        classNames: ['browse-event'],
+        // A block shared by several teachers gets a neutral: no one tone can
+        // stand for all of them, and the label already says how many.
+        color: group.teachers.length === 1 ? toneFor(group.teachers[0].id) : 'var(--border-medium)',
+        contrastColor: 'var(--text-primary)',
+        className: 'browse-event',
         extendedProps: {
           isBrowse: true,
           browseLabel: label,

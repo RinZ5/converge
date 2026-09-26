@@ -1,11 +1,18 @@
 <script setup lang="ts">
   import { computed, onMounted, ref } from 'vue'
+  import { Loader2 } from '@lucide/vue'
   import PageLayout from '../components/PageLayout.vue'
+  import { Button } from '@/components/ui/button'
+  import { Card, CardContent } from '@/components/ui/card'
   import { bookingApi } from '../services/bookingApi'
   import { useAuthStore } from '../stores/authStore'
   import type { Booking } from '../types'
 
   type Scope = 'upcoming' | 'past'
+  const SCOPES: { value: Scope; label: string }[] = [
+    { value: 'upcoming', label: 'Upcoming' },
+    { value: 'past', label: 'Past' },
+  ]
 
   const auth = useAuthStore()
   const isParent = computed(() => auth.role === 'parent')
@@ -98,323 +105,113 @@
 
 <template>
   <PageLayout title="My Classes" :show-cart="false">
-    <div class="classes-root">
-      <div class="classes-section">
-        <div class="classes-head">
-          <h2 class="classes-title">{{ isParent ? "Your students' classes" : 'Your classes' }}</h2>
-          <p class="classes-subtitle">
-            {{
-              isLoading
-                ? 'Loading...'
-                : `${upcomingCount} upcoming ${upcomingCount === 1 ? 'class' : 'classes'}`
-            }}
-          </p>
-        </div>
+    <div class="mx-auto flex w-full max-w-4xl flex-col gap-4 px-4 py-6 sm:px-6 lg:px-8">
+      <div class="flex flex-col gap-1">
+        <h2 class="text-lg font-semibold tracking-tight">
+          {{ isParent ? "Your students' classes" : 'Your classes' }}
+        </h2>
+        <p class="text-muted-foreground text-sm">
+          {{
+            isLoading
+              ? 'Loading…'
+              : `${upcomingCount} upcoming ${upcomingCount === 1 ? 'class' : 'classes'}`
+          }}
+        </p>
+      </div>
 
-        <div class="classes-tabs" role="tablist">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="bg-muted inline-flex w-fit rounded-md p-0.5" role="tablist">
           <button
+            v-for="option in SCOPES"
+            :key="option.value"
             type="button"
             role="tab"
-            class="classes-tab"
-            :class="{ 'classes-tab--active': scope === 'upcoming' }"
-            :aria-selected="scope === 'upcoming'"
-            @click="scope = 'upcoming'"
+            :aria-selected="scope === option.value"
+            class="focus-visible:ring-ring/50 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors outline-none focus-visible:ring-3"
+            :class="
+              scope === option.value
+                ? 'bg-background text-foreground shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            "
+            @click="scope = option.value"
           >
-            Upcoming
-          </button>
-          <button
-            type="button"
-            role="tab"
-            class="classes-tab"
-            :class="{ 'classes-tab--active': scope === 'past' }"
-            :aria-selected="scope === 'past'"
-            @click="scope = 'past'"
-          >
-            Past
+            {{ option.label }}
           </button>
         </div>
 
-        <div v-if="isParent && students.length > 1" class="classes-filters">
-          <button
-            type="button"
-            class="classes-chip"
-            :class="{ 'classes-chip--active': studentFilter === null }"
+        <div v-if="isParent && students.length > 1" class="flex flex-wrap gap-1.5">
+          <Button
+            :variant="studentFilter === null ? 'default' : 'outline'"
+            size="sm"
             @click="studentFilter = null"
           >
             All students
-          </button>
-          <button
+          </Button>
+          <Button
             v-for="student in students"
             :key="student.id"
-            type="button"
-            class="classes-chip"
-            :class="{ 'classes-chip--active': studentFilter === student.id }"
+            :variant="studentFilter === student.id ? 'default' : 'outline'"
+            size="sm"
             @click="studentFilter = student.id"
           >
             {{ student.name }}
-          </button>
-        </div>
-
-        <div v-if="isLoading" class="classes-empty">Loading your classes...</div>
-        <div v-else-if="loadError" class="classes-empty classes-empty--error">
-          {{ loadError }}
-          <button type="button" class="classes-retry" @click="load">Try again</button>
-        </div>
-        <div v-else-if="groups.length === 0" class="classes-empty">{{ emptyMessage }}</div>
-
-        <div v-else class="classes-days">
-          <section v-for="group in groups" :key="group.key" class="classes-day">
-            <h3 class="classes-day-label">{{ group.label }}</h3>
-            <div class="classes-card-list">
-              <article v-for="booking in group.items" :key="booking.id" class="classes-card">
-                <div class="classes-card-time">
-                  <span class="classes-card-hour">{{ formatTime(booking.start_time) }}</span>
-                  <span class="classes-card-dash">–</span>
-                  <span class="classes-card-hour">{{ formatTime(booking.end_time) }}</span>
-                </div>
-                <div class="classes-card-body">
-                  <div class="classes-card-subject">{{ booking.subject_name ?? 'Class' }}</div>
-                  <dl class="classes-card-meta">
-                    <div class="classes-meta-item">
-                      <dt>Teacher</dt>
-                      <dd>{{ booking.teacher_name ?? '—' }}</dd>
-                    </div>
-                    <div class="classes-meta-item">
-                      <dt>Branch</dt>
-                      <dd>{{ booking.branch_name ?? '—' }}</dd>
-                    </div>
-                    <div v-if="isParent" class="classes-meta-item">
-                      <dt>Student</dt>
-                      <dd>{{ booking.student_name }}</dd>
-                    </div>
-                  </dl>
-                </div>
-              </article>
-            </div>
-          </section>
+          </Button>
         </div>
       </div>
+
+      <Card v-if="isLoading">
+        <CardContent class="text-muted-foreground flex items-center gap-2 py-4 text-sm">
+          <Loader2 class="size-4 animate-spin" />
+          Loading your classes…
+        </CardContent>
+      </Card>
+
+      <Card v-else-if="loadError" class="border-destructive/30">
+        <CardContent class="flex flex-wrap items-center justify-between gap-3">
+          <p class="text-destructive text-sm">{{ loadError }}</p>
+          <Button variant="outline" @click="load">Try again</Button>
+        </CardContent>
+      </Card>
+
+      <Card v-else-if="groups.length === 0">
+        <CardContent class="text-muted-foreground text-center text-sm">
+          {{ emptyMessage }}
+        </CardContent>
+      </Card>
+
+      <template v-else>
+        <section v-for="group in groups" :key="group.key" class="flex flex-col gap-2">
+          <h3 class="text-muted-foreground text-2xs font-semibold tracking-wider uppercase">
+            {{ group.label }}
+          </h3>
+
+          <Card class="gap-0 overflow-hidden py-0">
+            <CardContent class="divide-border divide-y px-0">
+              <article
+                v-for="booking in group.items"
+                :key="booking.id"
+                class="flex items-start gap-4 px-4 py-3 sm:px-6"
+              >
+                <!-- The time leads: it is what someone scanning their week is
+                     looking for, and it keeps a column of its own. -->
+                <span class="w-24 shrink-0 text-sm font-medium tabular-nums">
+                  {{ formatTime(booking.start_time) }}–{{ formatTime(booking.end_time) }}
+                </span>
+
+                <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span class="truncate text-sm font-medium">
+                    {{ booking.subject_name ?? 'Class' }}
+                  </span>
+                  <span class="text-muted-foreground truncate text-xs">
+                    {{ booking.teacher_name ?? '—' }} · {{ booking.branch_name ?? '—' }}
+                    <template v-if="isParent"> · {{ booking.student_name }}</template>
+                  </span>
+                </div>
+              </article>
+            </CardContent>
+          </Card>
+        </section>
+      </template>
     </div>
   </PageLayout>
 </template>
-
-<style scoped>
-  .classes-root {
-    width: 100%;
-    height: 100%;
-  }
-
-  .classes-section {
-    padding: 1.5rem;
-    max-width: 48rem;
-    margin: 0 auto;
-  }
-
-  .classes-head {
-    margin-bottom: 1rem;
-  }
-
-  .classes-title {
-    margin: 0 0 0.25rem;
-    font-family: 'Instrument Sans', sans-serif;
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
-  .classes-subtitle {
-    margin: 0;
-    font-family: Inter, sans-serif;
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-  }
-
-  .classes-tabs {
-    display: flex;
-    gap: 0.25rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .classes-tab {
-    padding: 0.375rem 1rem;
-    font-family: Inter, sans-serif;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    color: var(--text-secondary);
-    background: transparent;
-    border: 1px solid var(--border-subtle);
-    border-radius: 9999px;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-
-  .classes-tab--active {
-    color: var(--on-accent);
-    background: var(--primary-indigo);
-    border-color: var(--primary-indigo);
-  }
-
-  .classes-filters {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.375rem;
-    margin-bottom: 1rem;
-  }
-
-  .classes-chip {
-    padding: 0.25rem 0.75rem;
-    font-family: Inter, sans-serif;
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: var(--text-secondary);
-    background: var(--bg-subtle);
-    border: 1px solid var(--border-subtle);
-    border-radius: 9999px;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-
-  .classes-chip--active {
-    color: var(--primary-indigo);
-    background: color-mix(in srgb, var(--primary-navy) 10%, transparent);
-    border-color: color-mix(in srgb, var(--primary-navy) 30%, transparent);
-  }
-
-  .classes-empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.75rem;
-    min-height: 10rem;
-    font-family: Inter, sans-serif;
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    border-radius: 0.75rem;
-    border: 2px dashed var(--border-medium);
-    background: var(--bg-subtle);
-    text-align: center;
-    padding: 1rem;
-  }
-
-  .classes-empty--error {
-    color: var(--danger-text);
-    border-color: var(--danger-border);
-    background: var(--danger-surface);
-  }
-
-  .classes-retry {
-    padding: 0.375rem 0.875rem;
-    font-family: Inter, sans-serif;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    color: var(--on-accent);
-    background: var(--primary-indigo);
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-  }
-
-  .classes-days {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-
-  .classes-day-label {
-    margin: 0 0 0.5rem;
-    font-family: Inter, sans-serif;
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-  }
-
-  .classes-card-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .classes-card {
-    display: flex;
-    gap: 1rem;
-    padding: 1rem;
-    background: var(--bg-card);
-    border: 1px solid var(--border-subtle);
-    border-radius: 0.75rem;
-  }
-
-  .classes-card-time {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    flex-shrink: 0;
-    min-width: 4rem;
-    font-family: 'JetBrains Mono', 'SF Mono', monospace;
-    font-size: 0.8125rem;
-    color: var(--text-primary);
-  }
-
-  .classes-card-dash {
-    color: var(--text-muted);
-    line-height: 1;
-  }
-
-  .classes-card-hour {
-    font-weight: 600;
-  }
-
-  .classes-card-body {
-    min-width: 0;
-    flex: 1;
-  }
-
-  .classes-card-subject {
-    font-family: Inter, sans-serif;
-    font-size: 0.9375rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 0.5rem;
-  }
-
-  .classes-card-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem 1.25rem;
-    margin: 0;
-  }
-
-  .classes-meta-item dt {
-    font-family: Inter, sans-serif;
-    font-size: 0.6875rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-  }
-
-  .classes-meta-item dd {
-    margin: 0;
-    font-family: Inter, sans-serif;
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-  }
-
-  @media (max-width: 767px) {
-    .classes-section {
-      padding: 1rem;
-    }
-
-    .classes-card {
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-
-    .classes-card-time {
-      flex-direction: row;
-      gap: 0.375rem;
-    }
-  }
-</style>

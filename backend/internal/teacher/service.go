@@ -55,6 +55,39 @@ func (s *Service) GetTeachersBySubject(ctx context.Context, subjectID int) ([]Te
 	return s.teacherStore.GetTeachersBySubject(ctx, subjectID)
 }
 
+func (s *Service) SubjectsForTeacher(ctx context.Context, teacherID int) ([]shared.Subject, error) {
+	if err := shared.ValidateAll(teacherID,
+		shared.PositiveInt("teacher_id", func(id int) int { return id }),
+	); err != nil {
+		return nil, err
+	}
+	return s.teacherStore.SubjectsForTeacher(ctx, teacherID)
+}
+
+// SetTeacherSubjects replaces the teacher's whole subject list. An empty list is
+// allowed and means the teacher currently teaches nothing, which is how a
+// teacher is taken out of the matching pool without deactivating them.
+func (s *Service) SetTeacherSubjects(ctx context.Context, teacherID int, subjectIDs []int) error {
+	if err := shared.ValidateAll(teacherID,
+		shared.PositiveInt("teacher_id", func(id int) int { return id }),
+	); err != nil {
+		return err
+	}
+	seen := make(map[int]struct{}, len(subjectIDs))
+	unique := make([]int, 0, len(subjectIDs))
+	for _, id := range subjectIDs {
+		if id <= 0 {
+			return &ValidationError{Msg: fmt.Sprintf("subject_id must be positive, got %d", id)}
+		}
+		if _, dup := seen[id]; dup {
+			continue
+		}
+		seen[id] = struct{}{}
+		unique = append(unique, id)
+	}
+	return s.teacherStore.ReplaceTeacherSubjects(ctx, teacherID, unique)
+}
+
 func (s *Service) GetAllAvailability(ctx context.Context) ([]TeacherAvailability, error) {
 	return s.availabilityStore.GetAllAvailability(ctx)
 }

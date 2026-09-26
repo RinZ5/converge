@@ -11,7 +11,7 @@ import {
   transformBackendAvailability,
 } from '../utils/availabilityTransform'
 import { useNotification } from '../composables/useNotification'
-import type { EventInput, BusinessHoursInput } from '@fullcalendar/core'
+import type { EventInput, BusinessHoursInput } from '@fullcalendar/vue3'
 import type {
   WeeklySlot,
   BookingResponse,
@@ -121,10 +121,9 @@ export const useBookingStore = defineStore('booking', () => {
       start: startDate.toISOString(),
       end: endDate.toISOString(),
       editable: false,
-      backgroundColor: 'var(--accent-sage)',
-      borderColor: 'var(--accent-sage)',
-      textColor: 'var(--on-accent)',
-      classNames: ['cart-event'],
+      color: 'var(--primary-navy)',
+      contrastColor: 'var(--on-accent)',
+      className: 'cart-event',
       extendedProps: {
         isCartItem: true,
         cartId: item.id,
@@ -143,10 +142,9 @@ export const useBookingStore = defineStore('booking', () => {
       start: startDate.toISOString(),
       end: endDate.toISOString(),
       editable: false,
-      backgroundColor: 'var(--text-muted)',
-      borderColor: 'var(--border-subtle)',
-      textColor: 'var(--text-secondary)',
-      classNames: ['booked-event'],
+      color: 'var(--border-medium)',
+      contrastColor: 'var(--text-primary)',
+      className: 'booked-event',
       extendedProps: {
         isBooked: true,
         bookingId: booking.id,

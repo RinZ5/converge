@@ -1,4 +1,4 @@
-import type { BusinessHoursInput } from '@fullcalendar/core'
+import type { BusinessHoursInput } from '@fullcalendar/vue3'
 import type { WeeklySlot } from '../types'
 
 interface BackendWeeklySlot {

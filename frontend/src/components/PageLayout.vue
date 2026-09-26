@@ -16,31 +16,11 @@
 </script>
 
 <template>
-  <div class="page-layout">
+  <div class="bg-background flex min-h-screen flex-col">
     <AppNavbar :title="title" :show-cart="showCart" :back-to="backTo" :back-label="backLabel" />
-    <main class="page-main">
+    <main class="w-full flex-1">
       <slot />
     </main>
     <AppToasts />
   </div>
 </template>
-
-<style scoped>
-  .page-layout {
-    min-height: 100vh;
-    background: var(--bg-cream);
-    display: flex;
-    flex-direction: column;
-  }
-
-  .page-main {
-    flex: 1;
-    width: 100%;
-  }
-
-  @media (max-width: 767px) {
-    .page-layout {
-      background: var(--bg-card);
-    }
-  }
-</style>

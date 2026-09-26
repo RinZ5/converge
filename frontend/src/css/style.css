@@ -13,6 +13,14 @@
 @import '@fontsource/instrument-sans/500.css';
 @import '@fontsource/instrument-sans/600.css';
 @import '@fontsource/instrument-sans/700.css';
+/* FullCalendar v7 brings no styling of its own: skeleton is required, then a
+ * theme and its palette. They load here, ahead of the bridge further down that
+ * re-points the palette's variables at the Soft Sage tokens. Importing them
+ * from Calendar.vue instead put them in a lazily-loaded chunk that the browser
+ * applied last, so the stock palette won. */
+@import '@fullcalendar/vue3/skeleton.css';
+@import '@fullcalendar/vue3/themes/classic/theme.css';
+@import '@fullcalendar/vue3/themes/classic/palette.css';
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
@@ -27,7 +35,24 @@
   --primary-navy: #2d4a3e;
   --primary-navy-deep: #1e3329;
   --accent-sage: #9db4a0;
+  /* Deep enough to carry white text (4.52:1); --accent-sage is 2.22:1. */
+  --accent-sage-deep: #5f7d63;
   --accent-mint: #a8c9b8;
+
+  /* ---------------------------------------------------------------------
+   * Per-teacher tones for the read-only browse calendar.
+   *
+   * These are categorical data colours, not chrome, so they sit outside the
+   * 60/30/10 rule the same way a chart's series colours do. Every one carries
+   * dark text at 8:1 or better, and the closest pair is 31 degrees apart, so
+   * two teachers side by side never read as the same block.
+   * ------------------------------------------------------------------- */
+  --teacher-1: #a8c9b8;
+  --teacher-2: #c9d4a3;
+  --teacher-3: #eed9a6;
+  --teacher-4: #efc4bb;
+  --teacher-5: #b6ccdc;
+  --teacher-6: #cdc2db;
 
   /* The 10% accent of the 60/30/10 split: 60% cream/card surface, 30% deep
    * sage, 10% amber. It is the only colour allowed to pull the eye in chrome
@@ -187,6 +212,13 @@
   --primary-navy: #9db4a0;
   --primary-navy-deep: #b3c6b6;
   --accent-sage: #7d9a84;
+  --accent-sage-deep: #8fae96;
+  --teacher-1: #4f7060;
+  --teacher-2: #616d44;
+  --teacher-3: #7a6535;
+  --teacher-4: #7d564e;
+  --teacher-5: #4d647a;
+  --teacher-6: #635777;
   --accent-mint: #6f9384;
 
   --text-primary: #e8efe9;
@@ -312,519 +344,74 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-.fc {
-  font-family: 'Inter', system-ui, sans-serif;
-  --fc-border-color: var(--border-subtle);
-  --fc-page-bg-color: var(--bg-card);
-  --fc-today-bg-color: transparent;
-  --fc-highlight-color: transparent;
-  touch-action: pan-x pan-y;
+/* ---------------------------------------------------------------------------
+ * FullCalendar v7 theme bridge.
+ *
+ * v7 renders with hashed class names, so the v6 approach of overriding
+ * `.fc-col-header-cell`, `.fc-event-main`, `.fc-timegrid-slot` and friends has
+ * no selector to hook onto any more. Instead the classic theme reads a fixed
+ * set of custom properties, and those are pointed at the Soft Sage tokens here.
+ * One list of variables replaces roughly 400 lines of overrides, and it follows
+ * the theme automatically, dark mode included.
+ *
+ * The faint/muted/strong steps are translucent overlays in the stock palette,
+ * not solid fills, so they stay translucent here or the layering breaks.
+ * ------------------------------------------------------------------------- */
+:root {
+  --fc-classic-primary: var(--accent-sage-deep);
+  --fc-classic-primary-foreground: var(--on-accent);
+  --fc-classic-event: var(--accent-sage-deep);
+  --fc-classic-event-contrast: var(--on-accent);
+
+  --fc-classic-button: var(--primary-navy);
+  --fc-classic-button-border: var(--primary-navy);
+  --fc-classic-button-strong: var(--primary-navy-deep);
+  --fc-classic-button-strong-border: var(--primary-navy-deep);
+  --fc-classic-button-foreground: var(--primary-foreground);
+  --fc-classic-button-outline: var(--ring);
+
+  --fc-classic-background: var(--bg-card);
+  --fc-classic-faint: color-mix(in srgb, var(--text-primary) 4%, transparent);
+  --fc-classic-muted: color-mix(in srgb, var(--text-primary) 8%, transparent);
+  --fc-classic-strong: color-mix(in srgb, var(--text-primary) 14%, transparent);
+
+  --fc-classic-foreground: var(--text-primary);
+  --fc-classic-faint-foreground: var(--text-muted);
+  --fc-classic-muted-foreground: var(--text-secondary);
+
+  --fc-classic-border: var(--border-subtle);
+  --fc-classic-strong-border: var(--border-medium);
+
+  --fc-classic-ring-color: var(--ring);
+  --fc-classic-now: var(--danger);
+  --fc-classic-today: color-mix(in srgb, var(--accent-amber) 7%, transparent);
+  --fc-classic-highlight: color-mix(in srgb, var(--accent-sage) 20%, transparent);
+  --fc-classic-background-event: var(--accent-coral);
 }
 
-.fc-scroller::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-.fc-scroller::-webkit-scrollbar-track {
-  background: transparent;
-}
-.fc-scroller::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
-  border-radius: 2px;
-}
-.fc-scroller::-webkit-scrollbar-thumb:hover {
-  background: var(--text-secondary);
-}
-
-.fc-col-header-cell {
-  padding: 20px 0;
-  background-color: var(--bg-cream);
-  border-bottom: 1px solid var(--border-subtle) !important;
-  position: relative;
-}
-
-.fc-col-header-cell::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 8px;
-  right: 8px;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    var(--border-technical) 20%,
-    var(--border-technical) 80%,
-    transparent
-  );
-}
-
-.fc-col-header-cell-cushion {
-  color: var(--text-primary);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  text-decoration: none !important;
-  padding: 8px 12px !important;
-  transition: all 0.3s ease;
-  font-family: 'JetBrains Mono', monospace;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  line-height: 1.3;
-  gap: 3px;
-}
-
-@media (min-width: 640px) {
-  .fc-col-header-cell-cushion {
-    font-size: var(--text-2xs);
-    padding: 8px 12px !important;
-  }
-}
-
-@media (min-width: 768px) {
-  .fc-col-header-cell-cushion {
-    padding: 10px 20px !important;
-  }
-}
-
-/* All day headers - no special coloring */
-.fc-col-header-cell {
-  background-color: transparent !important;
-}
-
-/* Today indicator - fills entire cell */
-.fc-col-header-cell.fc-day-today {
-  background-color: rgba(157, 180, 160, 0.15) !important;
-  position: relative;
-}
-
-/* All day headers - reserve space for TODAY badge */
-.fc-col-header-cell .fc-col-header-cell-cushion {
-  position: relative;
-  padding-top: 28px !important;
-  min-height: 52px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-.fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion {
-  color: var(--primary-navy);
-  font-weight: 700;
-}
-
-.fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion::before {
-  content: 'TODAY';
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--accent-amber);
-  color: var(--on-amber);
-  padding: 4px 12px;
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  border-radius: 8px;
-  font-family: 'JetBrains Mono', monospace;
-  box-shadow: 0 2px 6px color-mix(in srgb, var(--accent-amber) 35%, transparent);
-  z-index: 10;
-}
-
-/* Today column background in time grid */
-.fc-timegrid-col.fc-day-today {
-  background: linear-gradient(
-    180deg,
-    rgba(157, 180, 160, 0.05) 0%,
-    rgba(157, 180, 160, 0.12) 100%
-  ) !important;
-}
-
-.fc-col-header-cell .fc-col-header-cell-cushion {
-  color: var(--text-primary);
-}
-
-@media (min-width: 640px) {
-  .fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion::before {
-    padding: 5px 14px;
-    font-size: var(--text-2xs);
-  }
-}
-
-.fc-event {
+/* ---------------------------------------------------------------------------
+ * Our own event classes.
+ *
+ * Colour is NOT set here. v7 writes --fc-event-color and
+ * --fc-event-contrast-color inline on the element from the event's own `color`
+ * and `contrastColor` fields, and inline always beats a class rule -- setting
+ * them here produced white text on a pale fill. These rules are only for what
+ * the two colour fields cannot express.
+ * ------------------------------------------------------------------------- */
+.browse-event {
   cursor: pointer;
-  background: linear-gradient(135deg, rgba(157, 180, 160, 0.9) 0%, rgba(168, 201, 184, 0.85) 100%);
-  border: none;
-  border-radius: 12px;
-  padding: 12px 16px;
-  box-shadow: var(--shadow-card);
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  position: relative;
-  backdrop-filter: blur(8px);
-  touch-action: manipulation;
 }
 
-/* Ensure ::before is hidden when not selected */
-.fc-event:not(.fc-event-selected)::before {
-  opacity: 0 !important;
-}
-
-/* Selected state - same as hover */
-.fc-event.fc-event-selected {
-  box-shadow: var(--shadow-elevated);
-  z-index: 10 !important;
-}
-
-.fc-event.fc-event-selected::before {
-  opacity: 1 !important;
-}
-
-/* Resize handles - always visible on selected events */
-.fc-event.fc-event-selected .fc-event-resizer {
-  width: 16px !important;
-  height: 16px !important;
-  background: rgba(157, 180, 160, 0.8);
-  border: 2px solid white;
-  border-radius: 50%;
-  opacity: 1 !important;
-  position: absolute;
-}
-
-.fc-event-resizer.fc-event-resizer-start {
-  top: -6px !important;
-  left: 50% !important;
-  transform: translateX(-50%);
-}
-
-.fc-event-resizer.fc-event-resizer-end {
-  bottom: -6px !important;
-  left: 50% !important;
-  transform: translateX(-50%);
-}
-
-/* Make resize handles more visible */
-.fc-event-resizer {
-  width: 12px;
-  height: 12px;
-  background: rgba(157, 180, 160, 0.5);
-  border-radius: 50%;
-  position: absolute;
-}
-
-/* Always show resize handles on mobile */
-@media (max-width: 767px) {
-  .fc-event-resizer {
-    width: 20px !important;
-    height: 20px !important;
-    background: rgba(157, 180, 160, 0.7);
-    border: 2px solid white;
-  }
-
-  .fc-event-resizer.fc-event-resizer-start {
-    top: -8px !important;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
-  }
-
-  .fc-event-resizer.fc-event-resizer-end {
-    bottom: -8px !important;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
-  }
-}
-
-.fc-event::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, rgba(157, 180, 160, 0.3) 0%, transparent 100%);
-  border-radius: 12px;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.fc-event:hover {
-  background: linear-gradient(135deg, rgba(157, 180, 160, 1) 0%, rgba(168, 201, 184, 0.95) 100%);
-  transform: translateY(-3px) scale(1.02);
-  box-shadow: var(--shadow-elevated);
-  z-index: 10 !important;
-}
-
-.fc-event:hover::before {
-  opacity: 1;
-}
-
-.fc-v-event .fc-event-main {
-  color: var(--primary-navy-deep);
-  font-weight: 600;
-  font-size: 0.75rem;
-  letter-spacing: 0.02em;
-  padding: 6px 8px;
-  font-family: 'JetBrains Mono', monospace;
-  text-align: center;
-  line-height: 1.4;
-}
-
-/* Custom event content layout */
-.custom-event-content {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  padding: 0;
-  font-family: 'JetBrains Mono', monospace;
-}
-
-.event-time-range {
-  font-weight: 700;
-  font-size: 0.75rem;
-  line-height: 1.2;
-  font-family: 'JetBrains Mono', monospace;
-  color: var(--primary-navy);
-  letter-spacing: 0.02em;
-}
-
-/* Suggestion events - special styling (gold/yellow theme) */
-.fc-event.suggestion-exact {
-  background: linear-gradient(
-    135deg,
-    var(--accent-amber) 0%,
-    var(--accent-amber-light) 100%
-  ) !important;
-  border: 2px solid var(--accent-amber) !important;
-  box-shadow:
-    0 4px 16px rgba(244, 185, 66, 0.4),
-    0 0 0 1px rgba(244, 185, 66, 0.2) !important;
-}
-
-.fc-event.suggestion-exact:hover {
-  box-shadow:
-    0 6px 20px rgba(244, 185, 66, 0.5),
-    0 0 0 2px rgba(244, 185, 66, 0.3) !important;
-  transform: translateY(-4px) scale(1.03) !important;
-}
-
-.fc-event.suggestion-alt {
-  background: var(--accent-amber-soft) !important;
-  border: 2px solid var(--accent-amber-light) !important;
-  box-shadow: 0 2px 8px rgba(244, 185, 66, 0.2) !important;
-}
-
-.fc-event.suggestion-alt:hover {
-  box-shadow: 0 4px 12px rgba(244, 185, 66, 0.3) !important;
-  transform: translateY(-2px) scale(1.02) !important;
-}
-
-/* Cart events - items already in cart */
-.fc-event.cart-event {
-  background: linear-gradient(135deg, var(--accent-sage) 0%, var(--accent-mint) 100%) !important;
-  border: 2px solid var(--accent-sage) !important;
-  opacity: 0.85 !important;
-  pointer-events: none !important;
-  cursor: not-allowed !important;
-}
-
-/* Suggestion events - read-only appearance (no hover effect) */
-.fc-event.suggestion-exact,
-.fc-event.suggestion-alt {
-  cursor: default !important;
-  opacity: 0.9;
-}
-
-.fc-event.suggestion-exact:hover,
-.fc-event.suggestion-alt:hover {
-  opacity: 0.9 !important;
-  transform: none !important;
-  box-shadow: none !important;
-}
-
-/* Booked events - already confirmed bookings */
-.fc-event.booked-event {
-  cursor: not-allowed !important;
-  opacity: 0.6;
-  pointer-events: none !important;
-}
-
-.fc-event.booked-event:hover {
-  opacity: 0.6 !important;
-  transform: none !important;
-}
-
-.fc-non-business {
-  background-color: rgba(0, 0, 0, 0.08) !important;
-  background-image: none !important;
-  border-right: 1px solid var(--border-subtle) !important;
-}
-
-.fc-theme-standard td,
-.fc-theme-standard th {
-  border-color: var(--border-subtle) !important;
-}
-
-.fc-timegrid-slot-minor {
-  border-top-style: solid !important;
-  border-top-color: var(--border-medium) !important;
-}
-
-/* Make slot labels more visible */
-.fc-timegrid-slot {
-  position: relative;
-}
-
-.fc-timegrid-slot {
-  height: 52px;
-}
-
-@media (min-width: 640px) {
-  .fc-timegrid-slot {
-    height: 44px;
-  }
-}
-
-@media (min-width: 768px) {
-  .fc-timegrid-slot {
-    height: 40px;
-  }
-}
-
-.fc .fc-timegrid-axis-cushion,
-.fc .fc-timegrid-slot-label-cushion {
-  color: var(--text-secondary);
-  font-size: var(--text-2xs);
-  font-weight: 500;
-  letter-spacing: 0.05em;
-  padding: 0 8px;
-  font-family: 'JetBrains Mono', monospace;
-}
-
-@media (min-width: 640px) {
-  .fc .fc-timegrid-axis-cushion,
-  .fc .fc-timegrid-slot-label-cushion {
-    padding: 0 12px;
-    font-size: var(--text-2xs);
-  }
-}
-
-@media (min-width: 768px) {
-  .fc .fc-timegrid-axis-cushion,
-  .fc .fc-timegrid-slot-label-cushion {
-    padding: 0 16px;
-  }
-}
-
-.fc-timegrid-now-indicator-line {
-  border-color: var(--accent-sage) !important;
-  border-width: 2px !important;
-}
-
-.fc-timegrid-now-indicator-arrow {
-  border-color: var(--accent-sage) !important;
-  border-width: 5px !important;
-  margin-top: -2px;
-}
-
-.scale-in {
-  animation: scale-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-@keyframes scale-in {
-  from {
-    opacity: 0;
-    transform: scale(0.96) translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-/* Staggered fade-in with spring */
-@keyframes fade-in-up {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.stagger-in {
-  animation: fade-in-up 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
-}
-
-.stagger-in:nth-child(1) {
-  animation-delay: 0ms;
-}
-.stagger-in:nth-child(2) {
-  animation-delay: 60ms;
-}
-.stagger-in:nth-child(3) {
-  animation-delay: 120ms;
-}
-.stagger-in:nth-child(4) {
-  animation-delay: 180ms;
-}
-
-/* Enhanced select dropdown */
-select option {
-  padding: 10px 14px;
-  font-family: 'Inter', sans-serif;
-}
-
-select option:hover {
-  background-color: rgba(122, 139, 109, 0.15);
-}
-
-select option:checked {
-  background-color: var(--primary-indigo);
-  color: white;
-}
-
-/* Shadow utilities */
-.shadow-elevated {
-  box-shadow: var(--shadow-elevated);
-}
-
-.shadow-card {
-  box-shadow: var(--shadow-card);
-}
-
-/* FullCalendar toolbar overrides (shared across booking calendars) */
-.fc .fc-toolbar.fc-header-toolbar {
-  margin-bottom: 0 !important;
-}
-
-.fc .fc-button {
-  padding: 0.2rem 0.4rem !important;
-  font-size: 0.75rem !important;
-}
-
-.fc .fc-icon {
-  font-size: 0.8em !important;
-}
-
-.fc .fc-toolbar-title {
-  font-size: 0.875rem !important;
-}
-
-/* Reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
+/* A teacher is travelling between branches: the slot reads as unavailable
+   rather than bookable. The hatching sits on the event root, since the inner
+   element it used to hang off no longer exists. */
+.commute-unavailable {
+  cursor: not-allowed;
+  background-image: repeating-linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--accent-coral) 72%, transparent) 0,
+    color-mix(in srgb, var(--accent-coral) 72%, transparent) 7px,
+    color-mix(in srgb, var(--accent-coral-light) 72%, transparent) 7px,
+    color-mix(in srgb, var(--accent-coral-light) 72%, transparent) 14px
+  );
 }

@@ -38,6 +38,10 @@ type mockService struct {
 	setStatusCalled  bool
 	setGenderErr     error
 	setGenderCalled  bool
+
+	setSubjectsErr    error
+	setSubjectsCalled bool
+	setSubjectsIDs    []int
 }
 
 func (m *mockService) GetAllTeachers(ctx context.Context) ([]teacher.Teacher, error) {
@@ -82,6 +86,16 @@ func (m *mockService) SetStatus(ctx context.Context, teacherID int, status strin
 func (m *mockService) SetGender(ctx context.Context, teacherID int, gender string) error {
 	m.setGenderCalled = true
 	return m.setGenderErr
+}
+
+func (m *mockService) SubjectsForTeacher(ctx context.Context, teacherID int) ([]shared.Subject, error) {
+	return m.subjects, m.subjectsErr
+}
+
+func (m *mockService) SetTeacherSubjects(ctx context.Context, teacherID int, subjectIDs []int) error {
+	m.setSubjectsCalled = true
+	m.setSubjectsIDs = subjectIDs
+	return m.setSubjectsErr
 }
 
 func TestAvailabilityHandler_GetTeachers_Success(t *testing.T) {

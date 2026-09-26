@@ -14,6 +14,11 @@ type TeacherStore interface {
 	GetAllTeachers(ctx context.Context) ([]Teacher, error)
 	GetInactiveTeachers(ctx context.Context) ([]Teacher, error)
 	GetTeachersBySubject(ctx context.Context, subjectID int) ([]Teacher, error)
+	SubjectsForTeacher(ctx context.Context, teacherID int) ([]shared.Subject, error)
+	// ReplaceTeacherSubjects is a full replace, not a merge: the checklist the
+	// admin submits is the complete set, the same contract as
+	// ReplaceWeeklyAvailability.
+	ReplaceTeacherSubjects(ctx context.Context, teacherID int, subjectIDs []int) error
 }
 
 type AvailabilityStore interface {

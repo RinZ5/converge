@@ -1,14 +1,17 @@
 <script setup lang="ts">
   import { computed, ref, onMounted } from 'vue'
-  import { Loader2, Plus, Search } from '@lucide/vue'
+  import { BookOpen, Loader2, Plus, Search } from '@lucide/vue'
   import PageLayout from '../components/PageLayout.vue'
   import ManagementNav from '../components/ManagementNav.vue'
   import { useTeacherStore } from '../stores/teacherStore'
+  import { subjectApi } from '../services/subjectApi'
+  import { teacherApi } from '../services/teacherApi'
   import { useNotification } from '../composables/useNotification'
   import { sortDeactivatedLast } from '../utils/status'
   import { Button } from '@/components/ui/button'
   import { Card, CardContent } from '@/components/ui/card'
-  import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+  import { Badge } from '@/components/ui/badge'
+  import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
   import { Input } from '@/components/ui/input'
   import { Label } from '@/components/ui/label'
   import { Switch } from '@/components/ui/switch'
@@ -19,7 +22,7 @@
     SelectTrigger,
     SelectValue,
   } from '@/components/ui/select'
-  import type { Teacher } from '../types'
+  import type { Subject, Teacher } from '../types'
 
   const store = useTeacherStore()
   const { showSuccess, showError } = useNotification()
@@ -29,6 +32,14 @@
     { value: 'female', label: 'Female' },
     { value: 'lgbtq+', label: 'LGBTQ+' },
   ]
+
+  const allSubjects = ref<Subject[]>([])
+  // Keyed per teacher rather than derived from /teachers?subject_id=, which
+  // returns active teachers only -- a deactivated teacher would look like they
+  // teach nothing.
+  const subjectsByTeacher = ref<Map<number, Subject[]>>(new Map())
+
+  const subjectsFor = (teacherId: number): Subject[] => subjectsByTeacher.value.get(teacherId) ?? []
 
   const isLoadingList = ref(true)
   const loadError = ref('')
@@ -55,7 +66,14 @@
     isLoadingList.value = true
     loadError.value = ''
     try {
-      await store.reloadTeachers()
+      const [, subjects] = await Promise.all([store.reloadTeachers(), subjectApi.getAll()])
+      allSubjects.value = subjects
+      const assigned = await Promise.all(
+        store.teachers.map(
+          async (teacher) => [teacher.id, await teacherApi.getSubjects(teacher.id)] as const
+        )
+      )
+      subjectsByTeacher.value = new Map(assigned)
     } catch (err) {
       loadError.value = err instanceof Error ? err.message : 'Failed to load teachers'
     } finally {
@@ -105,6 +123,43 @@
     })
   }
 
+  // ---- subject assignment ------------------------------------------------
+  const subjectTarget = ref<Teacher | null>(null)
+  const subjectDraft = ref<number[]>([])
+  const isSavingSubjects = ref(false)
+
+  const openSubjects = (teacher: Teacher) => {
+    subjectTarget.value = teacher
+    subjectDraft.value = subjectsFor(teacher.id).map((subject) => subject.id)
+  }
+
+  const toggleSubject = (subjectId: number) => {
+    subjectDraft.value = subjectDraft.value.includes(subjectId)
+      ? subjectDraft.value.filter((id) => id !== subjectId)
+      : [...subjectDraft.value, subjectId]
+  }
+
+  const handleSaveSubjects = async () => {
+    const teacher = subjectTarget.value
+    if (!teacher || isSavingSubjects.value) return
+    isSavingSubjects.value = true
+    try {
+      await teacherApi.setSubjects(teacher.id, subjectDraft.value)
+      const next = new Map(subjectsByTeacher.value)
+      next.set(
+        teacher.id,
+        allSubjects.value.filter((subject) => subjectDraft.value.includes(subject.id))
+      )
+      subjectsByTeacher.value = next
+      showSuccess(`${teacher.name}'s subjects updated`)
+      subjectTarget.value = null
+    } catch (err) {
+      showError(err, `Failed to update ${teacher.name}'s subjects`)
+    } finally {
+      isSavingSubjects.value = false
+    }
+  }
+
   const isAdding = ref(false)
   const isSaving = ref(false)
   const newName = ref('')
@@ -122,10 +177,19 @@
     return null
   })
 
+  const newSubjectIds = ref<number[]>([])
+
+  const toggleNewSubject = (subjectId: number) => {
+    newSubjectIds.value = newSubjectIds.value.includes(subjectId)
+      ? newSubjectIds.value.filter((id) => id !== subjectId)
+      : [...newSubjectIds.value, subjectId]
+  }
+
   const openForm = () => {
     newName.value = ''
     newEmail.value = ''
     newGender.value = 'male'
+    newSubjectIds.value = []
     isAdding.value = true
   }
 
@@ -133,9 +197,31 @@
     if (createBlocker.value || isSaving.value) return
     isSaving.value = true
     try {
-      await store.createTeacher(trimmedName.value, trimmedEmail.value, newGender.value)
+      // POST /teachers does not take subjects, so the assignment is a second
+      // call. It is reported separately: the teacher does exist either way, and
+      // saying "failed to add" after they were added would be wrong.
+      const created = await store.createTeacher(
+        trimmedName.value,
+        trimmedEmail.value,
+        newGender.value
+      )
+      const subjectIds = [...newSubjectIds.value]
       showSuccess(`${trimmedName.value} added`)
       isAdding.value = false
+
+      if (created && subjectIds.length > 0) {
+        try {
+          await teacherApi.setSubjects(created.id, subjectIds)
+          const next = new Map(subjectsByTeacher.value)
+          next.set(
+            created.id,
+            allSubjects.value.filter((subject) => subjectIds.includes(subject.id))
+          )
+          subjectsByTeacher.value = next
+        } catch (err) {
+          showError(err, `${created.name} was added, but their subjects were not saved`)
+        }
+      }
     } catch (err) {
       showError(err, 'Failed to add teacher')
     } finally {
@@ -200,6 +286,34 @@
             </div>
 
             <div class="flex flex-col gap-2">
+              <Label>Subjects</Label>
+              <p v-if="allSubjects.length === 0" class="text-muted-foreground text-sm">
+                No subjects exist yet.
+              </p>
+              <div
+                v-else
+                class="border-border flex max-h-40 flex-col gap-1 overflow-y-auto rounded-md border p-2"
+              >
+                <label
+                  v-for="subject in allSubjects"
+                  :key="subject.id"
+                  class="hover:bg-muted/60 flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm"
+                >
+                  <input
+                    type="checkbox"
+                    class="accent-primary size-4"
+                    :checked="newSubjectIds.includes(subject.id)"
+                    @change="toggleNewSubject(subject.id)"
+                  />
+                  {{ subject.name }}
+                </label>
+              </div>
+              <p class="text-muted-foreground text-xs">
+                A teacher with no subjects cannot be booked.
+              </p>
+            </div>
+
+            <div class="flex flex-col gap-2">
               <Label for="new-gender">Gender</Label>
               <Select v-model="newGender">
                 <SelectTrigger id="new-gender" class="w-full">
@@ -232,6 +346,57 @@
               </div>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        :open="subjectTarget !== null"
+        @update:open="(open: boolean) => !open && (subjectTarget = null)"
+      >
+        <DialogContent>
+          <div class="flex flex-col gap-1">
+            <DialogTitle>Subjects for {{ subjectTarget?.name }}</DialogTitle>
+            <DialogDescription>
+              A teacher is only offered for the subjects ticked here.
+            </DialogDescription>
+          </div>
+
+          <p v-if="allSubjects.length === 0" class="text-muted-foreground text-sm">
+            No subjects exist yet.
+          </p>
+          <div
+            v-else
+            class="border-border flex max-h-64 flex-col gap-1 overflow-y-auto rounded-md border p-2"
+          >
+            <label
+              v-for="subject in allSubjects"
+              :key="subject.id"
+              class="hover:bg-muted/60 flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm"
+            >
+              <input
+                type="checkbox"
+                class="accent-primary size-4"
+                :checked="subjectDraft.includes(subject.id)"
+                @change="toggleSubject(subject.id)"
+              />
+              {{ subject.name }}
+            </label>
+          </div>
+
+          <div class="flex items-center justify-between gap-3">
+            <p class="text-muted-foreground text-sm tabular-nums">
+              {{ subjectDraft.length }} selected
+            </p>
+            <div class="flex gap-2">
+              <Button variant="ghost" :disabled="isSavingSubjects" @click="subjectTarget = null">
+                Cancel
+              </Button>
+              <Button :disabled="isSavingSubjects" @click="handleSaveSubjects">
+                <Loader2 v-if="isSavingSubjects" class="animate-spin" />
+                Save
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -278,7 +443,7 @@
                   ></span>
                 </span>
 
-                <div class="flex min-w-0 flex-col">
+                <div class="flex min-w-0 flex-col gap-1">
                   <span class="truncate text-sm font-medium">
                     {{ teacher.name }}
                     <span class="sr-only">
@@ -286,12 +451,35 @@
                     </span>
                   </span>
                   <span class="text-muted-foreground truncate text-xs">{{ teacher.email }}</span>
+                  <span v-if="subjectsFor(teacher.id).length" class="flex flex-wrap gap-1">
+                    <Badge
+                      v-for="subject in subjectsFor(teacher.id)"
+                      :key="subject.id"
+                      variant="secondary"
+                      class="font-normal"
+                    >
+                      {{ subject.name }}
+                    </Badge>
+                  </span>
+                  <span v-else class="text-muted-foreground text-xs italic">
+                    No subjects — cannot be booked
+                  </span>
                 </div>
               </div>
 
               <div
                 class="flex shrink-0 items-center justify-between gap-4 pl-5.5 sm:justify-end sm:pl-0"
               >
+                <Button
+                  variant="outline"
+                  size="sm"
+                  :disabled="isPending(teacher.id)"
+                  @click="openSubjects(teacher)"
+                >
+                  <BookOpen />
+                  Subjects
+                </Button>
+
                 <Select
                   :model-value="teacher.gender"
                   :disabled="isPending(teacher.id)"
