@@ -51,8 +51,10 @@ const PAIRS: [string, string, string, number][] = [
   ['success toast label', 'on-accent', 'success', 4.5],
   ['danger toast label', 'on-accent', 'danger', 4.5],
   ['amber fill ink (never white)', 'on-amber', 'accent-amber', 4.5],
-  // The calendar paints white on the default event colour.
-  ['calendar event label', 'on-accent', 'accent-sage-deep', 4.5],
+  // Not the default event colour any more -- that is a tint now, covered by
+  // 'draft block label'. --accent-sage-deep still carries white as the
+  // calendar's primary fill (buttons, the now marker).
+  ['calendar primary fill label', 'on-accent', 'accent-sage-deep', 4.5],
   // Calendar blocks are painted as a tint with an edge. Two things matter: the
   // label has to read on the tint, and the edge has to separate the block from
   // the card. Both are easy to lose by nudging one step of the ramp.
@@ -63,6 +65,11 @@ const PAIRS: [string, string, string, number][] = [
   ['browse block label 5', 'text-primary', 'cat-5-tint', 4.5],
   ['browse block label 6', 'text-primary', 'cat-6-tint', 4.5],
   ['cart block label', 'on-amber', 'accent-amber-tint', 4.5],
+  ['draft block label', 'text-primary', 'draft-fill', 4.5],
+  ['draft block edge', 'draft-edge', 'bg-card', 3],
+  // The edge has to separate from its own fill too, not just from the card:
+  // that is the pair a "make it a bit stronger" tweak to the fill breaks first.
+  ['draft edge against its fill', 'draft-edge', 'draft-fill', 3],
   ['cart block edge', 'accent-amber-strong', 'bg-card', 3],
   ['booked block label', 'text-primary', 'bg-subtle', 4.5],
   // Shared and booked blocks both take the neutral edge. --border-strong was

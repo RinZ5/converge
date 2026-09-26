@@ -81,6 +81,18 @@
     () => calendarState.value === 'editable' && events.value.length > 0 && !isAddingToCart.value
   )
 
+  // Booked blocks come off the grid while browsing. useBrowseEvents already
+  // subtracts booked time from each teacher's availability, so the slot is
+  // absent from the free blocks either way -- and with slotEventOverlap off, a
+  // nameless "Booked" card takes a lane away from the blocks that can actually
+  // be clicked. Once a teacher is picked it is their own schedule, nothing
+  // competes for the width, and it explains why a slot cannot be selected.
+  const calendarEvents = computed(() =>
+    calendarState.value === 'browse'
+      ? allEvents.value.filter((event) => !event.extendedProps?.isBooked)
+      : allEvents.value
+  )
+
   const additionalEvents = computed(() => [
     ...(calendarState.value === 'browse' ? browseEvents.value : []),
     ...(calendarState.value === 'editable' ? commuteConstraints.value : []),
@@ -216,9 +228,14 @@
         </div>
 
         <div class="relative">
-          <div class="border-border h-[30rem] overflow-hidden rounded-lg border lg:h-[44rem]">
+          <!-- expandRows shares the container height across the 22 half-hour rows of
+               the 08:00-19:00 window, so this height is what sets the row height:
+               44rem gave each hour ~60px, more than a one-line block needs. 36rem
+               puts an hour at ~48px and the smallest bookable slot at ~24px, still
+               room for its label. -->
+          <div class="border-border h-[30rem] overflow-hidden rounded-lg border lg:h-[36rem]">
             <Calendar
-              :model-value="allEvents"
+              :model-value="calendarEvents"
               :additional-events="additionalEvents"
               :editable="calendarState === 'editable'"
               :show-header="false"

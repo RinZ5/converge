@@ -38,11 +38,15 @@ export function useBusinessHoursHeaders(
     }
   }
 
+  // No setOption('businessHours') here. This watcher used to push the prop
+  // straight onto the calendar API, which silently won over the businessHours
+  // value declared in Calendar.vue's options -- two writers for one option, and
+  // the imperative one always landed last. Gating the painting on `editable`
+  // therefore did nothing while this line existed. The option is declarative
+  // now; this watcher only keeps the header class in sync.
   watch(getBusinessHours, (newBusinessHours) => {
     const api = calendarRef.value?.getApi()
     if (!api) return
-
-    api.setOption('businessHours', newBusinessHours)
 
     const headerEls = api.el.querySelectorAll('.fc-col-header-cell') as NodeListOf<HTMLElement>
     headerEls.forEach((headerEl) => {

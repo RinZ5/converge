@@ -46,6 +46,11 @@
     'dates-set': [range: { start: Date; end: Date }]
   }>()
 
+  // Held in a const so its identity is stable for the life of the component: a
+  // fresh [] on every recompute would make the options object differ on every
+  // render, which is exactly the churn the computed exists to avoid.
+  const NO_BUSINESS_HOURS: BusinessHoursInput = []
+
   const calendarRef = ref<InstanceType<typeof FullCalendar> | null>(null)
 
   const { isMobile, dayHeaderFormat, initialView, longPressDelay } =
@@ -151,7 +156,15 @@
     snapDuration: '01:00:00',
     dayHeaderDidMount: handleDayHeaderDidMount,
     selectMinDistance: 5,
+    // Two options one letter apart, and they do unrelated things. eventOverlap
+    // is a drag/drop rule: whether a slot may be dropped on top of another.
+    // slotEventOverlap is a layout rule: v7 defaults it to true, which stacks
+    // overlapping blocks with an offset so the later one covers the earlier
+    // one's right edge. Two teachers free over the same hours are exactly the
+    // case this view exists to show, so the blocks share the column width
+    // instead and none of them is hidden.
     eventOverlap: false,
+    slotEventOverlap: false,
   } as const
 
   const calendarOptions = computed(() => ({
@@ -168,7 +181,24 @@
     displayEventTime: false,
     eventDidMount: handleEventDidMount,
     eventWillUnmount: handleEventWillUnmount,
-    businessHours: props.businessHours,
+    // Painting business hours is only honest when the hours belong to one
+    // person. While browsing, props.businessHours is the union across every
+    // teacher shown, and FullCalendar paints it across the full column width
+    // while the blocks sit in half-width lanes -- so the white "open" band
+    // shows through beside a lane that has nothing in it. The blocks already
+    // say who is free when; the band only contradicts them.
+    //
+    // The prop is still passed: useBusinessHoursHeaders and isWithinConstraint
+    // read it directly, and selection is disabled while not editable anyway.
+    //
+    // An empty array, not `undefined` and not `false`. undefined reads as
+    // "option not given" and the calendar keeps whatever was set last, which
+    // left the previous teacher's band painted after going back to All
+    // teachers. `false` is a different shape from the value this option
+    // normally carries; an empty array is the same shape and means the same
+    // thing -- no business ranges, so FullCalendar shades the whole day as
+    // non-business.
+    businessHours: props.editable ? (props.businessHours ?? NO_BUSINESS_HOURS) : NO_BUSINESS_HOURS,
     eventConstraint: props.constraint,
     selectConstraint: props.constraint,
     selectAllow: handleSelectAllow,
@@ -207,9 +237,12 @@
            :deep() rules are no longer needed. The event-delete-btn class stays
            because useCalendarInteraction finds the button with closest(). -->
       <template #eventContent="arg">
+        <!-- Centred, like the booked blocks. Pinned to the top-left the label
+             floated in the corner of a tall block with nothing to balance it,
+             which read as a rendering slip rather than a choice. -->
         <div
           v-if="arg.event.extendedProps?.isBrowse"
-          class="flex w-full max-w-full flex-col items-stretch justify-start gap-px overflow-hidden"
+          class="flex h-full w-full max-w-full flex-col items-center justify-center gap-px overflow-hidden text-center"
         >
           <span class="text-2xs truncate leading-tight font-semibold">
             {{ arg.event.extendedProps.browseLabel }}

@@ -73,12 +73,6 @@
           </CardContent>
         </Card>
       </template>
-
-      <div class="flex justify-end">
-        <RouterLink to="/booking/confirm">
-          <Button variant="ghost">Review cart</Button>
-        </RouterLink>
-      </div>
     </div>
   </PageLayout>
 </template>

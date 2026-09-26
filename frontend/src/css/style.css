@@ -102,6 +102,21 @@
   --teacher-5-tint: var(--cat-5-tint);
   --teacher-6-tint: var(--cat-6-tint);
 
+  /* The slot being drawn, and the mirror under the cursor while it is drawn.
+   *
+   * Blue rather than sage: sage is a low-chroma grey-green, so letting it down
+   * into the card leaves something that reads as grey, and pushing the mix the
+   * other way drops the edge-to-fill separation to 2.69:1 -- the outline stops
+   * being visible, which was the whole point of the two steps. This is the
+   * same blue as --cat-5 at a heavier 60% mix: 10.66:1 for the label, 6.14:1
+   * for the edge on the card, 4.57:1 edge against its own fill.
+   *
+   * Borrowing a categorical hue is safe here for the same reason the subject
+   * dots can: a draft only exists in the editable state, and browseEvents --
+   * the only thing that paints teacher tones -- is not rendered there. */
+  --draft-fill: #d3e0ea;
+  --draft-edge: #4d647a;
+
   /* Roster subject dots. Same two steps, same way round: --subject-N is the
    * ring that makes the dot visible, --subject-N-soft is the pastel inside.
    *
@@ -297,6 +312,9 @@
   --cat-5-edge: #b6ccdc;
   --cat-6-edge: #cdc2db;
 
+  --draft-fill: #31464d;
+  --draft-edge: #b6ccdc;
+
   --cat-1-tint: #324c41;
   --cat-2-tint: #3a4a35;
   --cat-3-tint: #45472e;
@@ -445,8 +463,14 @@ body {
 :root {
   --fc-classic-primary: var(--accent-sage-deep);
   --fc-classic-primary-foreground: var(--on-accent);
-  --fc-classic-event: var(--accent-sage-deep);
-  --fc-classic-event-contrast: var(--on-accent);
+  /* The fallback colour for an event that sets none. Every event this app
+   * builds now sets its own, so the only thing left reading these is the
+   * select mirror -- the block drawn under the cursor while a slot is being
+   * dragged out. It used to be a solid dark fill with white ink that turned
+   * into a pastel block the moment the mouse came up. Same values as
+   * .draft-event, so the drag and the result look alike. */
+  --fc-classic-event: var(--draft-fill);
+  --fc-classic-event-contrast: var(--text-primary);
 
   --fc-classic-button: var(--primary-navy);
   --fc-classic-button-border: var(--primary-navy);
@@ -532,6 +556,25 @@ body {
 
 .cart-event {
   border-color: var(--accent-amber-strong);
+}
+
+/* A slot being drawn. The class was already on the event but had no rule, so
+ * the block fell back to the theme's default event colour -- a solid sage fill
+ * with white ink, the one block on the grid that was not a pastel wash. */
+.draft-event {
+  border-color: var(--draft-edge);
+}
+
+/* Commute gaps and at-capacity spans render as background events, and
+ * FullCalendar does not route those through the eventContent slot -- it emits
+ * its own title element, so the label cannot be positioned from the template
+ * the way the foreground blocks are. Centring the root works because that
+ * title is an ordinary padded span, not an absolutely positioned one. */
+.commute-unavailable,
+.capacity-event {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* A teacher is travelling between branches: the slot reads as unavailable
