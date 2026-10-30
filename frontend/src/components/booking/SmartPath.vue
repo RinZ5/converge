@@ -1,0 +1,292 @@
+<script setup lang="ts">
+  import { ref, computed, nextTick, watch } from 'vue'
+  import { Loader2, Plus, Sparkles, X } from '@lucide/vue'
+  import { useBooking } from '../../composables/useBooking'
+  import { useBookingContext } from '../../composables/useBookingContext'
+  import { useGenderFilterWarning } from '../../composables/useGenderFilterWarning'
+  import { useAISuggestions } from '../../composables/useAISuggestions'
+  import { useCart } from '../../composables/useCart'
+  import { useNumberSelect, useEnumSelect, NONE } from '../../composables/useSelectProxy'
+  import { genderLabel } from '../../utils/gender'
+  import { weeklySlotSchema } from '../../schemas/calendar'
+  import { toMinutes } from '../../utils/dateValidation'
+  import BookingResults from '../BookingResults.vue'
+  import { Button } from '@/components/ui/button'
+  import { Card, CardContent } from '@/components/ui/card'
+  import { Label } from '@/components/ui/label'
+  import { Separator } from '@/components/ui/separator'
+  import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+  } from '@/components/ui/select'
+  import type { WeeklySlot } from '../../types'
+
+  const {
+    genderFilteredTeachers,
+    isLoadingTeachers,
+    selectedSubjectId,
+    selectedBranchId,
+    selectedTeacherId,
+    requiredGender,
+    suggestions,
+    showDetailedResults,
+    isEvaluating,
+    resetBookingState,
+  } = useBooking()
+
+  const { contextBlocker, contextComplete } = useBookingContext()
+  const { isEmptyFromGenderFilter } = useGenderFilterWarning({ notify: true })
+  const { getSuggestions } = useAISuggestions()
+  const { cartItems, addSlotToCart } = useCart()
+
+  const genderValue = useEnumSelect(requiredGender)
+  const teacherValue = useNumberSelect(selectedTeacherId)
+
+  const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+  const TIME_OPTIONS: string[] = []
+  for (let hour = 8; hour <= 18; hour++) {
+    const hourStr = String(hour).padStart(2, '0')
+    TIME_OPTIONS.push(`${hourStr}:00`, `${hourStr}:30`)
+  }
+  TIME_OPTIONS.push('19:00')
+
+  const timeSlots = ref<WeeklySlot[]>([])
+  const draftDay = ref('1')
+  const draftStart = ref('09:00')
+  const draftEnd = ref('10:00')
+  const draftError = ref('')
+
+  const addTimeSlot = () => {
+    const parsed = weeklySlotSchema.safeParse({
+      day_of_week: Number(draftDay.value),
+      start: draftStart.value,
+      end: draftEnd.value,
+    })
+    if (!parsed.success) {
+      draftError.value = parsed.error.issues[0]?.message || 'Invalid time slot'
+      return
+    }
+    draftError.value = ''
+    timeSlots.value = [...timeSlots.value, parsed.data]
+    draftDay.value = String((Number(draftDay.value) + 1) % 7)
+  }
+
+  const removeTimeSlot = (index: number) => {
+    timeSlots.value = timeSlots.value.filter((_, i) => i !== index)
+  }
+
+  const submitBlocker = computed<string | null>(() => {
+    if (!contextComplete.value) return contextBlocker.value
+    const gender = requiredGender.value
+    if (gender === null) return 'Choose a gender preference.'
+    // Before the time windows, not after: with no teacher to match against, the
+    // engine can only come back empty, and it would come back empty without
+    // saying which of the criteria was the impossible one. This is knowable
+    // here -- the teacher list is already loaded on the client.
+    if (!isLoadingTeachers.value && genderFilteredTeachers.value.length === 0) {
+      return `No ${genderLabel(gender)} teacher teaches this subject — try a different preference.`
+    }
+    if (timeSlots.value.length === 0) return 'Add at least one preferred time window.'
+
+    const durations = new Set(timeSlots.value.map((s) => toMinutes(s.end) - toMinutes(s.start)))
+    if (durations.size > 1) return 'All time windows must be the same length.'
+    return null
+  })
+
+  const canSubmit = computed(() => submitBlocker.value === null && !isEvaluating.value)
+
+  const resultsRef = ref<HTMLElement | null>(null)
+
+  const handleSubmit = async () => {
+    if (!canSubmit.value) return
+    const found = await getSuggestions(timeSlots.value)
+    // The results append below the form and can land off-screen on a short
+    // viewport; bring them into view rather than leaving the click unanswered.
+    if (found) {
+      await nextTick()
+      resultsRef.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }
+  }
+
+  // Results answer the criteria that produced them. Editing a time window or the
+  // gender used to leave the old answer on screen beside the new question --
+  // invalidateRequest only cleared the in-flight flag, never the results.
+  // Changing the teacher already clears them through the booking store.
+  watch([timeSlots, requiredGender], () => {
+    if (showDetailedResults.value || suggestions.value) resetBookingState()
+  })
+
+  const handleConfirmBooking = (
+    teacherId: number,
+    teacherName: string,
+    startTime: string,
+    endTime: string
+  ) => {
+    addSlotToCart(
+      teacherId,
+      teacherName,
+      startTime,
+      endTime,
+      selectedSubjectId.value ?? undefined,
+      selectedBranchId.value ?? undefined
+    )
+  }
+</script>
+
+<template>
+  <!-- Form on the left, results on the right: the criteria stay in view while
+       the answer is read, instead of the answer appending below the fold. The
+       columns stack on narrow screens, keeping the original top-to-bottom flow. -->
+  <div class="grid items-start gap-4 lg:grid-cols-[24rem_1fr] xl:grid-cols-[28rem_1fr]">
+    <Card>
+      <CardContent class="flex flex-col gap-5 py-4">
+        <div class="flex flex-col gap-4">
+          <div class="flex flex-col gap-2">
+            <Label for="v3-smart-gender">Gender preference</Label>
+            <Select v-model="genderValue" :disabled="!contextComplete">
+              <!-- See ManualPath: the invalid state is the trigger's own, so
+                   the border and the announcement come from one attribute. -->
+              <SelectTrigger
+                id="v3-smart-gender"
+                class="w-full"
+                :aria-invalid="isEmptyFromGenderFilter"
+              >
+                <SelectValue placeholder="Select a preference" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="male">Male</SelectItem>
+                <SelectItem value="female">Female</SelectItem>
+                <SelectItem value="lgbtq+">LGBTQ+</SelectItem>
+              </SelectContent>
+            </Select>
+            <p class="text-muted-foreground text-xs">Required by the matching engine.</p>
+          </div>
+
+          <div class="flex flex-col gap-2">
+            <Label for="v3-smart-teacher">
+              Preferred teacher
+              <span class="text-muted-foreground font-normal">(optional)</span>
+            </Label>
+            <Select v-model="teacherValue" :disabled="!contextComplete">
+              <SelectTrigger id="v3-smart-teacher" class="w-full">
+                <SelectValue placeholder="Any teacher" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem :value="NONE">Any teacher</SelectItem>
+                <SelectItem
+                  v-for="teacher in genderFilteredTeachers"
+                  :key="teacher.id"
+                  :value="String(teacher.id)"
+                >
+                  {{ teacher.name }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <Separator />
+
+        <div class="flex flex-col gap-3">
+          <Label>Preferred time windows</Label>
+          <div class="flex flex-col gap-2">
+            <Select v-model="draftDay" :disabled="!contextComplete">
+              <SelectTrigger class="w-full" aria-label="Day of week">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="(name, index) in DAY_NAMES" :key="name" :value="String(index)">
+                  {{ name }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+
+            <div class="flex flex-wrap items-center gap-2">
+              <Select v-model="draftStart" :disabled="!contextComplete">
+                <SelectTrigger class="w-28" aria-label="Start time">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="time in TIME_OPTIONS" :key="`s-${time}`" :value="time">
+                    {{ time }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+
+              <span class="text-muted-foreground text-sm">to</span>
+
+              <Select v-model="draftEnd" :disabled="!contextComplete">
+                <SelectTrigger class="w-28" aria-label="End time">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="time in TIME_OPTIONS" :key="`e-${time}`" :value="time">
+                    {{ time }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Button
+                variant="outline"
+                size="icon"
+                :disabled="!contextComplete"
+                aria-label="Add time window"
+                @click="addTimeSlot"
+              >
+                <Plus class="size-4" />
+              </Button>
+            </div>
+          </div>
+
+          <p v-if="draftError" class="text-destructive text-xs" role="alert">{{ draftError }}</p>
+
+          <div v-if="timeSlots.length" class="flex flex-col gap-1.5">
+            <div
+              v-for="(slot, index) in timeSlots"
+              :key="`${slot.day_of_week}-${slot.start}-${slot.end}-${index}`"
+              class="border-border flex items-center justify-between rounded-md border px-3 py-1.5 text-sm"
+            >
+              <span>{{ DAY_NAMES[slot.day_of_week] }} {{ slot.start }} – {{ slot.end }}</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                :aria-label="`Remove ${DAY_NAMES[slot.day_of_week]} ${slot.start} to ${slot.end}`"
+                @click="removeTimeSlot(index)"
+              >
+                <X class="size-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between gap-3">
+          <p v-if="submitBlocker" class="text-muted-foreground text-sm">{{ submitBlocker }}</p>
+          <span v-else></span>
+          <Button :disabled="!canSubmit" @click="handleSubmit">
+            <Loader2 v-if="isEvaluating" class="size-4 animate-spin" />
+            <Sparkles v-else class="size-4" />
+            Find teachers
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+
+    <div ref="resultsRef">
+      <Card>
+        <CardContent class="py-4">
+          <BookingResults
+            :suggestions="suggestions"
+            :show-detailed-results="showDetailedResults"
+            :is-evaluating="isEvaluating"
+            :cart-items="cartItems"
+            @confirm-booking="handleConfirmBooking"
+          />
+        </CardContent>
+      </Card>
+    </div>
+  </div>
+</template>

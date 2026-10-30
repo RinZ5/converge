@@ -1,0 +1,192 @@
+//go:build integration
+
+package db
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"github.com/RinZ5/converge/backend/internal/shared"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestBranchRepoGetBranches(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewBranchRepository(db)
+
+	_, err := db.Exec(`INSERT INTO branches (id, name, capacity) VALUES (1, 'Main Campus', 30), (2, 'Downtown', 15)`)
+	require.NoError(t, err)
+
+	branches, err := repo.GetBranches(context.Background())
+	require.NoError(t, err)
+	assert.Len(t, branches, 2)
+	assert.Equal(t, 1, branches[0].ID)
+	assert.Equal(t, "Main Campus", branches[0].Name)
+	assert.Equal(t, 30, branches[0].Capacity)
+	assert.Equal(t, 2, branches[1].ID)
+	assert.Equal(t, "Downtown", branches[1].Name)
+	assert.Equal(t, 15, branches[1].Capacity)
+}
+
+func TestBranchRepoGetBranchByID_Success(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewBranchRepository(db)
+
+	_, err := db.Exec(`INSERT INTO branches (id, name, capacity) VALUES (1, 'Main Campus', 30)`)
+	require.NoError(t, err)
+
+	b, err := repo.GetBranchByID(context.Background(), 1)
+	require.NoError(t, err)
+	assert.Equal(t, 1, b.ID)
+	assert.Equal(t, "Main Campus", b.Name)
+	assert.Equal(t, 30, b.Capacity)
+}
+
+func TestBranchRepoGetBranchByID_NotFound(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewBranchRepository(db)
+
+	_, err := repo.GetBranchByID(context.Background(), 99)
+	require.Error(t, err)
+	var notFoundErr *shared.NotFoundError
+	assert.True(t, errors.As(err, &notFoundErr))
+}
+
+func TestBranchRepoAddBranch_Success(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewBranchRepository(db)
+
+	b, err := repo.AddBranch(context.Background(), "Riverside", 20)
+	require.NoError(t, err)
+	assert.NotZero(t, b.ID)
+	assert.Equal(t, "Riverside", b.Name)
+	assert.Equal(t, 20, b.Capacity)
+
+	fetched, err := repo.GetBranchByID(context.Background(), b.ID)
+	require.NoError(t, err)
+	assert.Equal(t, *b, *fetched)
+}
+
+func TestBranchRepoAddBranch_DuplicateName_ReturnsConflictError(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewBranchRepository(db)
+
+	_, err := db.Exec(`INSERT INTO branches (id, name, capacity) VALUES (1, 'Main Campus', 30)`)
+	require.NoError(t, err)
+
+	_, err = repo.AddBranch(context.Background(), "Main Campus", 10)
+	require.Error(t, err)
+	var confErr *shared.ConflictError
+	assert.True(t, errors.As(err, &confErr))
+}
+
+func TestBranchRepoAddBranch_ZeroCapacity_ReturnsValidationError(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewBranchRepository(db)
+
+	_, err := repo.AddBranch(context.Background(), "Riverside", 0)
+	require.Error(t, err)
+	var valErr *shared.ValidationError
+	assert.True(t, errors.As(err, &valErr))
+}
+
+func TestBranchRepoSetCapacity_Success(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewBranchRepository(db)
+
+	_, err := db.Exec(`INSERT INTO branches (id, name, capacity) VALUES (1, 'Main Campus', 10)`)
+	require.NoError(t, err)
+
+	require.NoError(t, repo.SetCapacity(context.Background(), 1, 25))
+
+	b, err := repo.GetBranchByID(context.Background(), 1)
+	require.NoError(t, err)
+	assert.Equal(t, 25, b.Capacity)
+}
+
+func TestBranchRepoSetCapacity_Unlimited_Allowed(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewBranchRepository(db)
+
+	_, err := db.Exec(`INSERT INTO branches (id, name, capacity) VALUES (1, 'Main Campus', 10)`)
+	require.NoError(t, err)
+
+	require.NoError(t, repo.SetCapacity(context.Background(), 1, -1))
+
+	b, err := repo.GetBranchByID(context.Background(), 1)
+	require.NoError(t, err)
+	assert.Equal(t, -1, b.Capacity)
+}
+
+func TestBranchRepoSetCapacity_Zero_ReturnsValidationError(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewBranchRepository(db)
+
+	_, err := db.Exec(`INSERT INTO branches (id, name, capacity) VALUES (1, 'Main Campus', 10)`)
+	require.NoError(t, err)
+
+	err = repo.SetCapacity(context.Background(), 1, 0)
+	require.Error(t, err)
+	var valErr *shared.ValidationError
+	assert.True(t, errors.As(err, &valErr))
+}
+
+func TestBranchRepoSetCapacity_NotFound(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewBranchRepository(db)
+
+	err := repo.SetCapacity(context.Background(), 99, 10)
+	require.Error(t, err)
+	var notFoundErr *shared.NotFoundError
+	assert.True(t, errors.As(err, &notFoundErr))
+}
+
+func TestBranchRepoSetStatus(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewBranchRepository(db)
+
+	_, err := db.Exec(`INSERT INTO branches (id, name, capacity) VALUES (1, 'Main Campus', 30)`)
+	require.NoError(t, err)
+
+	b, err := repo.GetBranchByID(context.Background(), 1)
+	require.NoError(t, err)
+	assert.Equal(t, "active", b.Status)
+
+	require.NoError(t, repo.SetStatus(context.Background(), 1, "deactivated"))
+
+	b, err = repo.GetBranchByID(context.Background(), 1)
+	require.NoError(t, err)
+	assert.Equal(t, "deactivated", b.Status)
+
+	branches, err := repo.GetBranches(context.Background())
+	require.NoError(t, err)
+	assert.Len(t, branches, 1)
+	assert.Equal(t, "deactivated", branches[0].Status)
+}
+
+func TestBranchRepoSetStatus_UnknownStatus(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewBranchRepository(db)
+
+	_, err := db.Exec(`INSERT INTO branches (id, name, capacity) VALUES (1, 'Main Campus', 30)`)
+	require.NoError(t, err)
+
+	err = repo.SetStatus(context.Background(), 1, "archived")
+	require.Error(t, err)
+	var valErr *shared.ValidationError
+	assert.ErrorAs(t, err, &valErr)
+	assert.EqualError(t, err, "invalid status")
+}
+
+func TestBranchRepoSetStatus_NotFound(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewBranchRepository(db)
+
+	err := repo.SetStatus(context.Background(), 99, "deactivated")
+	require.Error(t, err)
+	var notFoundErr *shared.NotFoundError
+	assert.ErrorAs(t, err, &notFoundErr)
+	assert.EqualError(t, err, "branch 99 not found")
+}

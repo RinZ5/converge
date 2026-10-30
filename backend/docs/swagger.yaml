@@ -1,0 +1,1500 @@
+basePath: /api
+definitions:
+  branch.Branch:
+    properties:
+      capacity:
+        example: 30
+        type: integer
+      id:
+        example: 1
+        type: integer
+      name:
+        example: Siam
+        type: string
+      status:
+        example: active
+        type: string
+    type: object
+  branch.CreateBranchRequest:
+    properties:
+      capacity:
+        example: 30
+        type: integer
+      name:
+        example: Siam
+        type: string
+    required:
+    - name
+    type: object
+  branch.UpdateCapacityRequest:
+    properties:
+      capacity:
+        example: 30
+        type: integer
+    required:
+    - capacity
+    type: object
+  branch.UpdateStatusRequest:
+    properties:
+      status:
+        example: deactivated
+        type: string
+    required:
+    - status
+    type: object
+  commute.CommuteResponse:
+    properties:
+      commute_time:
+        example: 30
+        type: integer
+      destination_branch:
+        example: 2
+        type: integer
+      source_branch:
+        example: 1
+        type: integer
+    type: object
+  commute.UpdateCommuteRequest:
+    properties:
+      commute_time:
+        example: 30
+        type: integer
+    required:
+    - commute_time
+    type: object
+  scheduling.Booking:
+    properties:
+      branch_id:
+        type: integer
+      branch_name:
+        type: string
+      created_at:
+        type: string
+      end_time:
+        type: string
+      id:
+        type: integer
+      start_time:
+        type: string
+      student_id:
+        type: integer
+      student_name:
+        type: string
+      subject_id:
+        type: integer
+      subject_name:
+        type: string
+      teacher_id:
+        type: integer
+      teacher_name:
+        type: string
+    type: object
+  scheduling.BookingAlternative:
+    properties:
+      branch_id:
+        type: integer
+      commute_minutes:
+        type: integer
+      end_time:
+        type: string
+      reasons:
+        items:
+          type: string
+        type: array
+      score:
+        type: integer
+      start_time:
+        type: string
+      subject_id:
+        type: integer
+      teacher_id:
+        type: integer
+      teacher_name:
+        type: string
+    type: object
+  scheduling.BookingRequest:
+    properties:
+      branch_id:
+        example: 1
+        type: integer
+      duration_minutes:
+        example: 60
+        type: integer
+      preferred_slots:
+        items:
+          $ref: '#/definitions/shared.WeeklySlot'
+        type: array
+      preferred_teacher_id:
+        example: 5
+        type: integer
+      required_gender:
+        enum:
+        - male
+        - female
+        - lgbtq+
+        example: female
+        type: string
+      subject_id:
+        example: 1
+        type: integer
+    required:
+    - branch_id
+    - preferred_slots
+    - required_gender
+    - subject_id
+    type: object
+  scheduling.BookingResponse:
+    properties:
+      results:
+        items:
+          $ref: '#/definitions/scheduling.SlotResult'
+        type: array
+    type: object
+  scheduling.ConfirmBookingRequest:
+    properties:
+      branch_id:
+        example: 1
+        type: integer
+      end_time:
+        example: "2026-06-01T10:00:00Z"
+        type: string
+      start_time:
+        example: "2026-06-01T09:00:00Z"
+        type: string
+      student_id:
+        example: 3
+        type: integer
+      subject_id:
+        example: 1
+        type: integer
+      teacher_id:
+        example: 1
+        type: integer
+    required:
+    - branch_id
+    - end_time
+    - start_time
+    - student_id
+    - subject_id
+    - teacher_id
+    type: object
+  scheduling.ErrorResponse:
+    properties:
+      error:
+        example: failed to retrieve teachers
+        type: string
+    type: object
+  scheduling.MessageResponse:
+    properties:
+      message:
+        example: Availability saved successfully
+        type: string
+    type: object
+  scheduling.RescheduleBookingRequest:
+    properties:
+      end_time:
+        example: "2026-06-01T10:00:00Z"
+        type: string
+      start_time:
+        example: "2026-06-01T09:00:00Z"
+        type: string
+    required:
+    - end_time
+    - start_time
+    type: object
+  scheduling.SlotResult:
+    properties:
+      alternatives:
+        items:
+          $ref: '#/definitions/scheduling.BookingAlternative'
+        type: array
+      exact_match:
+        $ref: '#/definitions/scheduling.BookingAlternative'
+      message:
+        type: string
+      slot:
+        $ref: '#/definitions/shared.WeeklySlot'
+    type: object
+  shared.Subject:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  shared.WeeklySlot:
+    properties:
+      day_of_week:
+        description: 0=Sunday ... 6=Saturday (matches JavaScript Date.getDay())
+        example: 0
+        type: integer
+      end:
+        example: "10:00"
+        type: string
+      start:
+        example: "09:00"
+        type: string
+    type: object
+  teacher.CreateTeacherRequest:
+    properties:
+      email:
+        example: alice@example.com
+        type: string
+      gender:
+        example: female
+        type: string
+      name:
+        example: Alice
+        type: string
+    required:
+    - email
+    - gender
+    - name
+    type: object
+  teacher.SubmitAvailabilityResponse:
+    properties:
+      deleted_bookings:
+        example: 3
+        type: integer
+      message:
+        example: Availability saved successfully
+        type: string
+    type: object
+  teacher.Teacher:
+    properties:
+      email:
+        example: alice@example.com
+        type: string
+      gender:
+        example: female
+        type: string
+      id:
+        example: 1
+        type: integer
+      name:
+        example: Alice
+        type: string
+      status:
+        example: active
+        type: string
+    type: object
+  teacher.TeacherAvailability:
+    properties:
+      teacher:
+        $ref: '#/definitions/teacher.Teacher'
+      weekly:
+        items:
+          $ref: '#/definitions/shared.WeeklySlot'
+        type: array
+    type: object
+  teacher.UpdateAvailabilityRequest:
+    properties:
+      weekly:
+        items:
+          $ref: '#/definitions/shared.WeeklySlot'
+        type: array
+    type: object
+  teacher.UpdateGenderRequest:
+    properties:
+      gender:
+        example: female
+        type: string
+    required:
+    - gender
+    type: object
+  teacher.UpdateStatusRequest:
+    properties:
+      status:
+        example: deactivated
+        type: string
+    required:
+    - status
+    type: object
+  teacher.UpdateSubjectsRequest:
+    properties:
+      subject_ids:
+        example:
+        - 1
+        - 2
+        items:
+          type: integer
+        type: array
+    type: object
+  user.AuthResponse:
+    properties:
+      token:
+        example: eyJhbGciOiJIUzI1NiIs...
+        type: string
+      user:
+        $ref: '#/definitions/user.User'
+    type: object
+  user.LinkStudentRequest:
+    properties:
+      student_id:
+        example: 3
+        type: integer
+    required:
+    - student_id
+    type: object
+  user.LoginRequest:
+    properties:
+      name:
+        example: alice
+        type: string
+      password:
+        example: s3cret
+        type: string
+    required:
+    - name
+    - password
+    type: object
+  user.ParentWithStudents:
+    properties:
+      id:
+        example: 5
+        type: integer
+      name:
+        example: mom
+        type: string
+      role:
+        example: parent
+        type: string
+      students:
+        items:
+          $ref: '#/definitions/user.User'
+        type: array
+    type: object
+  user.RegisterRequest:
+    properties:
+      name:
+        example: alice
+        type: string
+      password:
+        example: s3cret
+        type: string
+      role:
+        enum:
+        - admin
+        - student
+        - parent
+        example: student
+        type: string
+      student_ids:
+        description: StudentIDs links a parent to the students they guard. Required
+          when role is parent, ignored otherwise.
+        example:
+        - 3
+        - 4
+        items:
+          type: integer
+        type: array
+    required:
+    - name
+    - password
+    - role
+    type: object
+  user.User:
+    properties:
+      id:
+        example: 1
+        type: integer
+      name:
+        example: alice
+        type: string
+      role:
+        example: student
+        type: string
+    type: object
+info:
+  contact: {}
+  description: API for teacher availability management and bookings
+  title: Converge API
+  version: "1.0"
+paths:
+  /availability:
+    get:
+      description: Returns all active teachers with their weekly availability slots,
+        grouped by teacher
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/teacher.TeacherAvailability'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+      summary: Get all teacher availability
+      tags:
+      - availability
+  /bookings:
+    get:
+      description: Admin sees all bookings; a student sees only their own; a parent
+        sees their students' bookings.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/scheduling.Booking'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List bookings (scoped by role)
+      tags:
+      - bookings
+    post:
+      consumes:
+      - application/json
+      description: Evaluates each preferred_slot independently and returns per-slot
+        results with either an exact_match or alternatives.
+      parameters:
+      - description: Booking request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/scheduling.BookingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/scheduling.BookingResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Evaluate a booking request
+      tags:
+      - bookings
+  /bookings/{id}:
+    delete:
+      description: Deletes a confirmed booking by ID. Returns 404 if not found.
+      parameters:
+      - description: Booking ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/scheduling.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Cancel a booking
+      tags:
+      - bookings
+    put:
+      consumes:
+      - application/json
+      description: Moves a booking to a new time. Teacher, branch, subject and student
+        stay as booked. The class must not have started, and the new time must be
+        in the future, inside the teacher's availability, and pass the overlap and
+        commute checks.
+      parameters:
+      - description: Booking ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: New time
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/scheduling.RescheduleBookingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/scheduling.Booking'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Change a booking's time
+      tags:
+      - bookings
+  /bookings/confirm:
+    post:
+      consumes:
+      - application/json
+      description: Creates the actual booking in the database after the client selects
+        a result from the evaluate endpoint.
+      parameters:
+      - description: Booking confirmation
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/scheduling.ConfirmBookingRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/scheduling.Booking'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Confirm a booking
+      tags:
+      - bookings
+  /branches:
+    get:
+      description: Returns all branches ordered by id
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/branch.Branch'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List branches
+      tags:
+      - branches
+    post:
+      consumes:
+      - application/json
+      description: Adds a new branch with a name and capacity (-1 means unlimited)
+      parameters:
+      - description: New branch payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/branch.CreateBranchRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/branch.Branch'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a branch
+      tags:
+      - branches
+  /branches/{id}/capacity:
+    patch:
+      consumes:
+      - application/json
+      description: Sets how many concurrent classes a branch can hold. -1 means unlimited.
+      parameters:
+      - description: Branch ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: New capacity
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/branch.UpdateCapacityRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/scheduling.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a branch's capacity
+      tags:
+      - branches
+  /branches/{id}/status:
+    patch:
+      consumes:
+      - application/json
+      description: Sets a branch's status to active or deactivated. Deactivated branches
+        stay listed for history but cannot take new bookings.
+      parameters:
+      - description: Branch ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: New status
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/branch.UpdateStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/scheduling.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Toggle branch active/deactivated status
+      tags:
+      - branches
+  /commute:
+    get:
+      description: Returns the commute time in minutes. Without query params, returns
+        the default commute time. With both source_branch and destination_branch,
+        returns 0 when they are equal, otherwise the default.
+      parameters:
+      - description: Source branch ID
+        in: query
+        name: source_branch
+        type: integer
+      - description: Destination branch ID
+        in: query
+        name: destination_branch
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/commute.CommuteResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get commute time between two branches
+      tags:
+      - commute
+    patch:
+      consumes:
+      - application/json
+      description: Sets the commute time in minutes applied between different branches.
+        Must be non-negative.
+      parameters:
+      - description: New commute time
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/commute.UpdateCommuteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/commute.CommuteResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update the global commute time
+      tags:
+      - commute
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Verifies a user's name and password and returns a JWT access token
+        plus the user.
+      parameters:
+      - description: User credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/user.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/user.AuthResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+      summary: Log in
+      tags:
+      - users
+  /parents:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/user.ParentWithStudents'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List all parents with their students (admin only)
+      tags:
+      - users
+  /parents/{id}/students:
+    get:
+      parameters:
+      - description: Parent user ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/user.User'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List a parent's linked students (admin only)
+      tags:
+      - users
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Parent user ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Student to link
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/user.LinkStudentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/scheduling.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Link a student to a parent (admin only)
+      tags:
+      - users
+  /parents/{id}/students/{studentId}:
+    delete:
+      parameters:
+      - description: Parent user ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Student user ID
+        in: path
+        name: studentId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/scheduling.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Unlink a student from a parent (admin only)
+      tags:
+      - users
+  /register:
+    post:
+      consumes:
+      - application/json
+      description: Admin-only. Creates a user with a unique name, a bcrypt-hashed
+        password, and the given role.
+      parameters:
+      - description: New user credentials and role
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/user.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/user.User'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Register a new user (admin only)
+      tags:
+      - users
+  /students:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/user.User'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List all students (admin only)
+      tags:
+      - users
+  /subjects:
+    get:
+      description: Returns all subjects ordered by id
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/shared.Subject'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+      summary: List subjects
+      tags:
+      - subjects
+  /teachers:
+    get:
+      description: Returns teachers ordered by name. Filter by status (active|deactivated|all,
+        default all). Optionally filter by subject_id, which returns active teachers
+        only and ignores status.
+      parameters:
+      - description: Filter by subject ID (active teachers only)
+        in: query
+        name: subject_id
+        type: integer
+      - description: Filter by status
+        enum:
+        - active
+        - deactivated
+        - all
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/teacher.Teacher'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+      summary: List teachers
+      tags:
+      - teachers
+    post:
+      consumes:
+      - application/json
+      description: Adds a new teacher with name, email, and gender
+      parameters:
+      - description: New teacher payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/teacher.CreateTeacherRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/teacher.Teacher'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a teacher
+      tags:
+      - teachers
+  /teachers/{id}/availability:
+    put:
+      consumes:
+      - application/json
+      description: 'Replaces all existing availability for a teacher with the provided
+        weekly schedule (full replace, not merge) and deletes every booking of that
+        teacher from the start of the current week (Sunday 00:00 Asia/Bangkok) onward,
+        including ones earlier this week. Rejects overlapping slots within the same
+        day. Idempotent: repeating the request deletes nothing further.'
+      parameters:
+      - description: Teacher ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Weekly slots
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/teacher.UpdateAvailabilityRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/teacher.SubmitAvailabilityResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Replace a teacher's weekly availability
+      tags:
+      - availability
+  /teachers/{id}/gender:
+    patch:
+      consumes:
+      - application/json
+      description: Sets a teacher's gender to male, female, or lgbtq+
+      parameters:
+      - description: Teacher ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: New gender
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/teacher.UpdateGenderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/scheduling.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a teacher's gender
+      tags:
+      - teachers
+  /teachers/{id}/status:
+    patch:
+      consumes:
+      - application/json
+      description: Sets a teacher's status to active or deactivated
+      parameters:
+      - description: Teacher ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: New status
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/teacher.UpdateStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/scheduling.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Toggle teacher active/deactivated status
+      tags:
+      - teachers
+  /teachers/{id}/subjects:
+    get:
+      description: Returns the subjects a teacher is assigned to teach, ordered by
+        name.
+      parameters:
+      - description: Teacher ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/shared.Subject'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List a teacher's subjects
+      tags:
+      - teachers
+    put:
+      consumes:
+      - application/json
+      description: Replaces the teacher's whole subject list with the one supplied
+        (full replace, not merge). An empty list clears it.
+      parameters:
+      - description: Teacher ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Subject ids
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/teacher.UpdateSubjectsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/scheduling.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/scheduling.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Replace a teacher's subjects
+      tags:
+      - teachers
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and the JWT from /login.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

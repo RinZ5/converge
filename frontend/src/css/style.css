@@ -1,0 +1,639 @@
+/* Must stay first: `@import 'tailwindcss'` expands inline, so any @import after
+ * it lands mid-stylesheet and gets dropped as an invalid late @import. */
+/* Self-hosted via @fontsource, pinned in package-lock.json and served from our
+ * own origin. Inter is the only family: `body` below is the single rule that
+ * sets font-family, nothing declares --font-sans/--font-mono, and no
+ * font-sans/font-mono/font-serif utility appears anywhere in src. JetBrains
+ * Mono and Instrument Sans were carried over wholesale from the old Google
+ * Fonts URL and never had a rule referencing them.
+ *
+ * The weights are the ones something actually asks for: 400/500/600 from the
+ * font-normal/medium/semibold utilities, and 700 for FullCalendar's theme
+ * (theme.css `font-weight: 700`), which without this renders as synthetic
+ * bold. There is no font-light in src, so 300 is not loaded. */
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+/* FullCalendar v7 brings no styling of its own: skeleton is required, then a
+ * theme and its palette. They load here, ahead of the bridge further down that
+ * re-points the palette's variables at the Soft Sage tokens. Importing them
+ * from Calendar.vue instead put them in a lazily-loaded chunk that the browser
+ * applied last, so the stock palette won. */
+@import '@fullcalendar/vue3/skeleton.css';
+@import '@fullcalendar/vue3/themes/classic/theme.css';
+@import '@fullcalendar/vue3/themes/classic/palette.css';
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Soft Sage Color Palette */
+  --bg-cream: #f7f9f7;
+  --bg-card: #ffffff;
+  --bg-subtle: #f0f4f2;
+
+  --primary-navy: #2d4a3e;
+  --primary-navy-deep: #1e3329;
+  --accent-sage: #9db4a0;
+  /* Deep enough to carry white text (4.52:1); --accent-sage is 2.22:1. */
+  --accent-sage-deep: #5f7d63;
+  --accent-mint: #a8c9b8;
+
+  /* ---------------------------------------------------------------------
+   * The categorical ramp: six hues, two steps each.
+   *
+   * These are data colours, not chrome, so they sit outside the 60/30/10 rule
+   * the same way a chart's series colours do. The closest pair is 31 degrees
+   * apart, so two categories side by side never read as the same block.
+   *
+   *   --cat-N-fill   the recessive step. Carries dark text at 8:1 or better,
+   *                  but only ~1.5:1 against the card itself, so it cannot
+   *                  define a shape on its own.
+   *   --cat-N-edge   the readable step, 5.50-6.65:1 against the card. This is
+   *                  what gives a fill its boundary.
+   *   --cat-N-tint   the fill as it is actually painted: --cat-N-fill let down
+   *                  45% into the card. The block reads as a pastal wash with
+   *                  a firm edge instead of a solid colour chip, and the edge
+   *                  still separates from it at 4.30-5.32:1.
+   *
+   * The roles are what the names mean, not the lightness: the two steps swap
+   * in dark mode, and everything below follows because it is an alias.
+   * ------------------------------------------------------------------- */
+  --cat-1-fill: #a8c9b8;
+  --cat-2-fill: #c9d4a3;
+  --cat-3-fill: #eed9a6;
+  --cat-4-fill: #efc4bb;
+  --cat-5-fill: #b6ccdc;
+  --cat-6-fill: #cdc2db;
+
+  --cat-1-edge: #4f7060;
+  --cat-2-edge: #616d44;
+  --cat-3-edge: #7a6535;
+  --cat-4-edge: #7d564e;
+  --cat-5-edge: #4d647a;
+  --cat-6-edge: #635777;
+
+  --cat-1-tint: #d8e7df;
+  --cat-2-tint: #e7ecd6;
+  --cat-3-tint: #f7eed7;
+  --cat-4-tint: #f8e4e0;
+  --cat-5-tint: #dee8ef;
+  --cat-6-tint: #e9e4ef;
+
+  /* Browse-calendar blocks, one tone per teacher: filled block, edge ring. */
+  --teacher-1: var(--cat-1-fill);
+  --teacher-2: var(--cat-2-fill);
+  --teacher-3: var(--cat-3-fill);
+  --teacher-4: var(--cat-4-fill);
+  --teacher-5: var(--cat-5-fill);
+  --teacher-6: var(--cat-6-fill);
+  --teacher-1-strong: var(--cat-1-edge);
+  --teacher-2-strong: var(--cat-2-edge);
+  --teacher-3-strong: var(--cat-3-edge);
+  --teacher-4-strong: var(--cat-4-edge);
+  --teacher-5-strong: var(--cat-5-edge);
+  --teacher-6-strong: var(--cat-6-edge);
+  --teacher-1-tint: var(--cat-1-tint);
+  --teacher-2-tint: var(--cat-2-tint);
+  --teacher-3-tint: var(--cat-3-tint);
+  --teacher-4-tint: var(--cat-4-tint);
+  --teacher-5-tint: var(--cat-5-tint);
+  --teacher-6-tint: var(--cat-6-tint);
+
+  /* The slot being drawn, and the mirror under the cursor while it is drawn.
+   *
+   * Blue rather than sage: sage is a low-chroma grey-green, so letting it down
+   * into the card leaves something that reads as grey, and pushing the mix the
+   * other way drops the edge-to-fill separation to 2.69:1 -- the outline stops
+   * being visible, which was the whole point of the two steps. This is the
+   * same blue as --cat-5 at a heavier 60% mix: 10.66:1 for the label, 6.14:1
+   * for the edge on the card, 4.57:1 edge against its own fill.
+   *
+   * Borrowing a categorical hue is safe here for the same reason the subject
+   * dots can: a draft only exists in the editable state, and browseEvents --
+   * the only thing that paints teacher tones -- is not rendered there. */
+  --draft-fill: #d3e0ea;
+  --draft-edge: #4d647a;
+
+  /* The "nobody is free here" wash on the booking grid. It used to ride on
+   * --fc-classic-faint, the theme's 4% overlay, which lands at 1.07:1 against
+   * the white card -- close enough to invisible that the band did not read as
+   * a state at all, which is the whole complaint.
+   *
+   * 12% instead: 1.25:1, roughly three times the step off the card. It stays a
+   * wash rather than a fill on purpose -- every event tint on this grid is
+   * lighter than a 12% neutral, so the blocks keep sitting in front of it.
+   * Note this is deliberately below the 3:1 of 1.4.11: at 3:1 the band is
+   * mid-grey and the pastel treatment is gone. The state is not carried by the
+   * shading alone -- the free hours hold the teacher blocks that name who is
+   * available -- so the band is reinforcement, not the sole signal. */
+  --calendar-off-hours: color-mix(in srgb, var(--text-primary) 12%, transparent);
+
+  /* Roster subject dots. Same two steps, same way round: --subject-N is the
+   * ring that makes the dot visible, --subject-N-soft is the pastel inside.
+   *
+   * Sharing the ramp with the teacher tones is safe because the two never
+   * share a screen: teacher tones only appear on the browse calendar, subject
+   * dots only on the roster. */
+  --subject-1: var(--cat-1-edge);
+  --subject-2: var(--cat-2-edge);
+  --subject-3: var(--cat-3-edge);
+  --subject-4: var(--cat-4-edge);
+  --subject-5: var(--cat-5-edge);
+  --subject-6: var(--cat-6-edge);
+  --subject-1-soft: var(--cat-1-fill);
+  --subject-2-soft: var(--cat-2-fill);
+  --subject-3-soft: var(--cat-3-fill);
+  --subject-4-soft: var(--cat-4-fill);
+  --subject-5-soft: var(--cat-5-fill);
+  --subject-6-soft: var(--cat-6-fill);
+
+  /* The 10% accent of the 60/30/10 split: 60% cream/card surface, 30% deep
+   * sage, 10% amber. It is the only colour allowed to pull the eye in chrome
+   * (cart badge, TODAY, suggestions, focus ring). Terracotta and mint used to
+   * compete for this job; they are now semantic-only and surface-only.
+   *
+   * White on amber is 1.77:1, so an amber fill always takes dark ink. That is
+   * what --on-amber is for; never pair amber with --on-accent. */
+  --accent-amber: #e0a42c;
+  --accent-amber-light: #f0c46a;
+  /* Strokes, rings and amber-coloured marks on a white surface. The fill step
+   * above is only 2.21:1 against white, which fails WCAG 1.4.11 for non-text
+   * UI; this one is 3.75:1. Never use it as a fill under dark ink (3.82:1). */
+  --accent-amber-strong: #a87d0e;
+  --accent-amber-soft: color-mix(in srgb, #e0a42c 15%, transparent);
+  /* Opaque counterpart of -soft, for a cart block that has to sit on the
+   * calendar grid without the lines showing through it. */
+  --accent-amber-tint: #f8ebd1;
+  --on-amber: #1a2e28;
+
+  --text-primary: #1a2e28;
+  --text-secondary: #4a5c52;
+  --text-muted: #68766f;
+
+  --border-subtle: #d8e2dc;
+  --border-medium: #b8c9b9;
+  --border-strong: #9db4a0;
+  --border-technical: #2d4a3e;
+
+  /* Coral/Terracotta for alerts and errors */
+  --accent-coral: #e8a598;
+  --accent-coral-light: #f5c7bf;
+
+  /* Shadows with soft undertone */
+  --shadow-card: 0 2px 8px rgba(45, 74, 62, 0.06), 0 8px 24px rgba(45, 74, 62, 0.04);
+  --shadow-elevated: 0 4px 20px rgba(45, 74, 62, 0.1), 0 12px 40px rgba(45, 74, 62, 0.06);
+
+  /* Legacy aliases for compatibility */
+  --ink-primary: var(--text-primary);
+  --paper-cream: var(--bg-cream);
+  --paper-white: var(--bg-card);
+  --primary-indigo: var(--primary-navy);
+  --primary-indigo-deep: var(--primary-navy-deep);
+  --accent-terracotta: var(--accent-sage);
+}
+
+/* ---------------------------------------------------------------------------
+ * shadcn-vue token layer.
+ * These are the names shadcn components consume. Every value maps back to the
+ * Soft Sage palette above, so components inherit the existing identity instead
+ * of shipping shadcn's default neutral theme.
+ * ------------------------------------------------------------------------- */
+:root {
+  --radius: 0.625rem;
+
+  --background: var(--bg-cream);
+  --foreground: var(--text-primary);
+
+  --card: var(--bg-card);
+  --card-foreground: var(--text-primary);
+  --popover: var(--bg-card);
+  --popover-foreground: var(--text-primary);
+
+  --primary: var(--primary-navy);
+  --primary-foreground: var(--bg-cream);
+
+  --secondary: var(--bg-subtle);
+  --secondary-foreground: var(--text-primary);
+
+  --muted: var(--bg-subtle);
+  --muted-foreground: var(--text-muted);
+
+  /* Hover/active surface: a touch warmer than --muted so the two are distinct. */
+  --accent: #e8efe9;
+  --accent-foreground: var(--text-primary);
+
+  /* --accent-coral is a soft tint meant for alert *backgrounds*; it fails
+   * contrast as a text/solid-button color, so destructive uses a deeper
+   * terracotta from the same family. */
+  --destructive: #bf5548;
+  --destructive-foreground: #ffffff;
+
+  --border: var(--border-subtle);
+  --input: var(--border-subtle);
+  /* Focus is a state, not a severity. This was --accent-amber-strong (#a87d0e),
+   * which is a hair from --warning (#b0651c): a control read as flagged the
+   * moment it was focused, and now that an invalid select turns its border
+   * --destructive, amber sat between plain and error and looked like a step on
+   * that scale. The primary reads as "this is the app", not "something is up",
+   * and it is far easier to see: 9.72:1 on the card against amber's 3.75:1.
+   *
+   * No .dark entry needed -- --primary-navy is itself redefined there, so the
+   * ring follows. */
+  --ring: var(--primary-navy);
+
+  --chart-1: var(--primary-navy);
+  --chart-2: var(--accent-sage);
+  --chart-3: var(--accent-amber);
+  --chart-4: var(--accent-mint);
+  --chart-5: var(--accent-coral);
+}
+
+/* ---------------------------------------------------------------------------
+ * Neutral ramp. These are not new colours: they formalise the Soft Sage values
+ * already defined above into a 50-950 scale, so a component never has to reach
+ * for a Tailwind default grey (#6b7280, #e5e7eb, ...) that sits outside the
+ * palette. Pick a step; never invent one.
+ * ------------------------------------------------------------------------- */
+:root {
+  --neutral-50: var(--bg-cream);
+  --neutral-100: var(--bg-subtle);
+  --neutral-200: #e8efe9;
+  --neutral-300: var(--border-subtle);
+  --neutral-400: var(--border-medium);
+  --neutral-500: var(--accent-sage);
+  --neutral-600: var(--text-muted);
+  --neutral-700: var(--text-secondary);
+  --neutral-800: var(--primary-navy);
+  --neutral-900: var(--primary-navy-deep);
+  --neutral-950: var(--text-primary);
+}
+
+/* ---------------------------------------------------------------------------
+ * Status tokens. Components used to hardcode Tailwind's green/red families
+ * (#166534 on #dcfce7, #b91c1c on #fef2f2), which read as a different product
+ * next to the sage palette. Each status carries the four roles a status needs:
+ * solid fill, readable text, tinted surface, and surface border.
+ * ------------------------------------------------------------------------- */
+:root {
+  --success: #3f7d5c;
+  --success-text: #2c5c42;
+  --success-surface: #e4f0e9;
+  --success-border: #bcdcc9;
+
+  --warning: #b0651c;
+  --warning-text: #8a4a10;
+  --warning-surface: #fdf3e0;
+  --warning-border: #f2dcae;
+
+  --danger: var(--destructive);
+  --danger-text: #9a3f34;
+  --danger-surface: #fbeceb;
+  --danger-border: #f0c9c4;
+
+  /* Text/iconography sitting on a saturated accent fill. Distinct from
+   * --primary-foreground (which is the cream page tint) because a coral or
+   * sage button needs true white to hold contrast. */
+  --on-accent: #ffffff;
+
+  /* Deeper coral for the hover state of a coral fill. */
+  --accent-coral-deep: #b85c4e;
+}
+
+/* ---------------------------------------------------------------------------
+ * Dark theme. `@custom-variant dark` is declared at the top of this file but no
+ * dark values existed, so every dark: utility resolved to the light palette.
+ * Overriding the Soft Sage base variables here is enough: the shadcn layer, the
+ * neutral ramp and the status tokens are all defined in terms of these, so they
+ * follow automatically.
+ *
+ * Nothing sets `.dark` yet — there is no theme toggle — so this block is inert
+ * until one is added, and has not been verified in a browser.
+ * ------------------------------------------------------------------------- */
+.dark {
+  --bg-cream: #12201b;
+  --bg-card: #1a2e28;
+  --bg-subtle: #23382f;
+
+  --primary-navy: #9db4a0;
+  --primary-navy-deep: #b3c6b6;
+  --accent-sage: #7d9a84;
+  --accent-sage-deep: #8fae96;
+  --cat-1-fill: #4f7060;
+  --cat-2-fill: #616d44;
+  --cat-3-fill: #7a6535;
+  --cat-4-fill: #7d564e;
+  --cat-5-fill: #4d647a;
+  --cat-6-fill: #635777;
+
+  --cat-1-edge: #a8c9b8;
+  --cat-2-edge: #c9d4a3;
+  --cat-3-edge: #eed9a6;
+  --cat-4-edge: #efc4bb;
+  --cat-5-edge: #b6ccdc;
+  --cat-6-edge: #cdc2db;
+
+  --draft-fill: #31464d;
+  --draft-edge: #b6ccdc;
+
+  /* 9%, not 12%: a light overlay on a dark card gains contrast faster than a
+   * dark one on white. 12% here would be 1.41:1 against the card while the
+   * light theme sits at 1.25:1; 9% lands at 1.29:1, so the band reads as the
+   * same weight in both themes. */
+  --calendar-off-hours: color-mix(in srgb, var(--text-primary) 9%, transparent);
+
+  --cat-1-tint: #324c41;
+  --cat-2-tint: #3a4a35;
+  --cat-3-tint: #45472e;
+  --cat-4-tint: #474039;
+  --cat-5-tint: #31464d;
+  --cat-6-tint: #3b404c;
+  --accent-mint: #6f9384;
+
+  --text-primary: #e8efe9;
+  --text-secondary: #b8c9b9;
+  --text-muted: #8fa396;
+
+  --border-subtle: #2d4a3e;
+  --border-medium: #3d5a4a;
+  --border-strong: #4f6f5c;
+  --border-technical: #9db4a0;
+
+  --accent-coral: #c97f72;
+  --accent-coral-light: #d89a8f;
+  --accent-coral-deep: #a85f52;
+
+  --accent-amber: #d9a851;
+  --accent-amber-light: #e3bd76;
+  --accent-amber-strong: #e3bd76;
+  --accent-amber-soft: color-mix(in srgb, #d9a851 18%, transparent);
+  --accent-amber-tint: #4f5033;
+  --on-amber: #e8efe9;
+
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.28);
+  --shadow-elevated: 0 4px 20px rgba(0, 0, 0, 0.5), 0 12px 40px rgba(0, 0, 0, 0.35);
+
+  /* The primary fill inverts: a sage fill on a dark page needs dark text. */
+  --primary-foreground: #12201b;
+  --accent: #2a4136;
+  --neutral-200: #2a4136;
+  --destructive: #d87566;
+
+  --success: #6aa886;
+  --success-text: #9ccfb2;
+  --success-surface: #1c3328;
+  --success-border: #2f5442;
+
+  --warning: #d08a45;
+  --warning-text: #e8c98a;
+  --warning-surface: #33290f;
+  --warning-border: #5a4a1d;
+
+  --danger-text: #e8a79c;
+  --danger-surface: #37211e;
+  --danger-border: #5c3732;
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --color-neutral-50: var(--neutral-50);
+  --color-neutral-100: var(--neutral-100);
+  --color-neutral-200: var(--neutral-200);
+  --color-neutral-300: var(--neutral-300);
+  --color-neutral-400: var(--neutral-400);
+  --color-neutral-500: var(--neutral-500);
+  --color-neutral-600: var(--neutral-600);
+  --color-neutral-700: var(--neutral-700);
+  --color-neutral-800: var(--neutral-800);
+  --color-neutral-900: var(--neutral-900);
+  --color-neutral-950: var(--neutral-950);
+
+  --color-success: var(--success);
+  --color-success-text: var(--success-text);
+  --color-success-surface: var(--success-surface);
+  --color-success-border: var(--success-border);
+  --color-warning: var(--warning);
+  --color-warning-text: var(--warning-text);
+  --color-warning-surface: var(--warning-surface);
+  --color-warning-border: var(--warning-border);
+  --color-danger: var(--danger);
+  --color-danger-text: var(--danger-text);
+  --color-danger-surface: var(--danger-surface);
+  --color-danger-border: var(--danger-border);
+  --color-on-accent: var(--on-accent);
+  --color-accent-amber: var(--accent-amber);
+  --color-accent-amber-light: var(--accent-amber-light);
+  --color-accent-amber-strong: var(--accent-amber-strong);
+  --color-on-amber: var(--on-amber);
+
+  /* The only step below text-xs. Replaces the ad-hoc 0.65rem / 0.7rem /
+   * 0.53125rem sizes that were scattered through scoped styles. */
+  --text-2xs: 0.6875rem;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: var(--bg-cream);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ---------------------------------------------------------------------------
+ * FullCalendar v7 theme bridge.
+ *
+ * v7 renders with hashed class names, so the v6 approach of overriding
+ * `.fc-col-header-cell`, `.fc-event-main`, `.fc-timegrid-slot` and friends has
+ * no selector to hook onto any more. Instead the classic theme reads a fixed
+ * set of custom properties, and those are pointed at the Soft Sage tokens here.
+ * One list of variables replaces roughly 400 lines of overrides, and it follows
+ * the theme automatically, dark mode included.
+ *
+ * The faint/muted/strong steps are translucent overlays in the stock palette,
+ * not solid fills, so they stay translucent here or the layering breaks.
+ * ------------------------------------------------------------------------- */
+:root {
+  --fc-classic-primary: var(--accent-sage-deep);
+  --fc-classic-primary-foreground: var(--on-accent);
+  /* The fallback colour for an event that sets none. Every event this app
+   * builds now sets its own, so the only thing left reading these is the
+   * select mirror -- the block drawn under the cursor while a slot is being
+   * dragged out. It used to be a solid dark fill with white ink that turned
+   * into a pastel block the moment the mouse came up. Same values as
+   * .draft-event, so the drag and the result look alike. */
+  --fc-classic-event: var(--draft-fill);
+  --fc-classic-event-contrast: var(--text-primary);
+
+  --fc-classic-button: var(--primary-navy);
+  --fc-classic-button-border: var(--primary-navy);
+  --fc-classic-button-strong: var(--primary-navy-deep);
+  --fc-classic-button-strong-border: var(--primary-navy-deep);
+  --fc-classic-button-foreground: var(--primary-foreground);
+  --fc-classic-button-outline: var(--ring);
+
+  --fc-classic-background: var(--bg-card);
+  --fc-classic-faint: color-mix(in srgb, var(--text-primary) 4%, transparent);
+  --fc-classic-muted: color-mix(in srgb, var(--text-primary) 8%, transparent);
+  --fc-classic-strong: color-mix(in srgb, var(--text-primary) 14%, transparent);
+
+  --fc-classic-foreground: var(--text-primary);
+  --fc-classic-faint-foreground: var(--text-muted);
+  --fc-classic-muted-foreground: var(--text-secondary);
+
+  --fc-classic-border: var(--border-subtle);
+  --fc-classic-strong-border: var(--border-medium);
+
+  --fc-classic-ring-color: var(--ring);
+  --fc-classic-now: var(--danger);
+  /* No tint on today's column. It is the one classic-theme fill that paints a
+   * whole column of the grid, so it read as a state the column was in -- next
+   * to the shaded "nobody is free" hours and the amber cart blocks, an amber
+   * column is a third thing competing for the same meaning. The date is still
+   * in the header and nowIndicator still draws the current-time line, both of
+   * which say "today" without claiming anything about the hours.
+   *
+   * transparent rather than deleting the line: the theme's own default would
+   * come back, and this is the only place recording that the blank is meant. */
+  --fc-classic-today: transparent;
+  --fc-classic-highlight: color-mix(in srgb, var(--accent-sage) 20%, transparent);
+  --fc-classic-background-event: var(--accent-coral);
+}
+
+/* ---------------------------------------------------------------------------
+ * Our own event classes.
+ *
+ * The fill and the label colour are NOT set here. v7 writes --fc-event-color
+ * and --fc-event-contrast-color inline on the element from the event's own
+ * `color` and `contrastColor` fields, and an inline variable beats the value a
+ * class rule would give it -- setting them here produced white text on a pale
+ * fill. These rules are for what those two fields cannot express.
+ * ------------------------------------------------------------------------- */
+.browse-event {
+  cursor: pointer;
+}
+
+/* The event's border is the one thing the colour fields cannot reach: the
+ * theme paints border-color and background-color from the same
+ * --fc-event-color, so every block came out as a flat fill with an invisible
+ * border. Overriding border-color here gives the block the same shape the
+ * roster's subject dots have -- recessive fill, readable edge.
+ *
+ * This is a plain class rule against the theme's own plain class rule, and
+ * this stylesheet is imported after the theme, so it wins on order. It does
+ * not fight the inline variable, which only sets --fc-event-color itself. */
+.browse-tone-1 {
+  border-color: var(--teacher-1-strong);
+}
+.browse-tone-2 {
+  border-color: var(--teacher-2-strong);
+}
+.browse-tone-3 {
+  border-color: var(--teacher-3-strong);
+}
+.browse-tone-4 {
+  border-color: var(--teacher-4-strong);
+}
+.browse-tone-5 {
+  border-color: var(--teacher-5-strong);
+}
+.browse-tone-6 {
+  border-color: var(--teacher-6-strong);
+}
+
+/* A block several teachers share takes no tone, so it gets a neutral edge.
+ * --border-strong was the obvious pick and is wrong: it is 2.22:1 against the
+ * card, so the edge it draws is not actually visible. --neutral-600 is the
+ * muted-text step and clears 4.5:1. */
+.browse-tone-shared {
+  border-color: var(--neutral-600);
+}
+
+/* The other two event kinds, so the whole grid reads the same way: pastel wash,
+ * firm edge. Neither had a rule at all, which is why they stayed flat while the
+ * browse blocks gained an outline. */
+.booked-event {
+  border-color: var(--neutral-600);
+}
+
+.cart-event {
+  border-color: var(--accent-amber-strong);
+}
+
+/* Passed as nonBusinessHoursClass, which replaces the theme's own class for
+ * those cells. Worth the extra option rather than simply raising
+ * --fc-classic-faint: that variable also paints button hover and focus-visible
+ * in the theme, so moving it would have made every hover in the calendar
+ * heavier to fix one band. */
+.calendar-off-hours {
+  background-color: var(--calendar-off-hours);
+}
+
+/* A slot being drawn. The class was already on the event but had no rule, so
+ * the block fell back to the theme's default event colour -- a solid sage fill
+ * with white ink, the one block on the grid that was not a pastel wash. */
+.draft-event {
+  border-color: var(--draft-edge);
+}
+
+/* Commute gaps and at-capacity spans render as background events, and
+ * FullCalendar does not route those through the eventContent slot -- it emits
+ * its own title element, so the label cannot be positioned from the template
+ * the way the foreground blocks are. Centring the root works because that
+ * title is an ordinary padded span, not an absolutely positioned one. */
+.commute-unavailable,
+.capacity-event {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* A teacher is travelling between branches: the slot reads as unavailable
+   rather than bookable. The hatching sits on the event root, since the inner
+   element it used to hang off no longer exists. */
+.commute-unavailable {
+  cursor: not-allowed;
+  background-image: repeating-linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--accent-coral) 72%, transparent) 0,
+    color-mix(in srgb, var(--accent-coral) 72%, transparent) 7px,
+    color-mix(in srgb, var(--accent-coral-light) 72%, transparent) 7px,
+    color-mix(in srgb, var(--accent-coral-light) 72%, transparent) 14px
+  );
+}
